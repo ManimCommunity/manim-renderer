@@ -1,9 +1,46 @@
 <template>
-  <canvas class="renderer-element" ref="renderer" />
+  <div>
+    <canvas class="renderer-element" ref="renderer" />
+    <button @click="()=>controls.reset()">Reset camera</button>
+  </div>
 </template>
 
 <script>
+/* eslint-disable */
 import * as THREE from "three";
+import { Mobject } from "./Mobject.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+
+const SQUARE_DATA = [
+  {
+    points: [
+      [-1.1102230246251565e-16, 1.414213562373095, 0.0],
+      [-0.4714045207910317, 0.9428090415820634, 8.164311994315686e-17],
+      [-0.9428090415820634, 0.4714045207910317, 1.6328623988631375e-16],
+      [-1.414213562373095, -1.1102230246251565e-16, 2.4492935982947064e-16],
+      [-1.414213562373095, -1.1102230246251565e-16, 2.4492935982947064e-16],
+      [-0.9428090415820634, -0.4714045207910317, 1.6328623988631378e-16],
+      [-0.4714045207910317, -0.9428090415820634, 8.164311994315689e-17],
+      [1.1102230246251565e-16, -1.414213562373095, 0.0],
+      [1.1102230246251565e-16, -1.414213562373095, 0.0],
+      [0.4714045207910317, -0.9428090415820634, -8.164311994315686e-17],
+      [0.9428090415820634, -0.4714045207910317, -1.6328623988631375e-16],
+      [1.414213562373095, 1.1102230246251565e-16, -2.4492935982947064e-16],
+      [1.414213562373095, 1.1102230246251565e-16, -2.4492935982947064e-16],
+      [0.9428090415820634, 0.4714045207910317, -1.6328623988631378e-16],
+      [0.4714045207910317, 0.9428090415820634, -8.164311994315689e-17],
+      [-1.1102230246251565e-16, 1.414213562373095, 0.0]
+    ],
+    style: {
+      fill_color: "#fff",
+      fill_opacity: 0.0,
+      stroke_color: "#fff",
+      stroke_width: 4,
+      stroke_opacity: 1.0
+    },
+    id: 140378656248304
+  }
+];
 
 export default {
   name: "App",
@@ -20,6 +57,7 @@ export default {
     this.scene = null;
     this.camera = null;
     this.renderer = null;
+    this.controls = null;
 
     this.frameData = [];
 
@@ -60,19 +98,25 @@ export default {
       this.rendererHeight,
       false
     );
-    document.body.appendChild(this.renderer.domElement);
+
+    // Controls
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
 
     // Add something.
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    const cube = new THREE.Mesh(geometry, material);
-    this.scene.add(cube);
+    const { id, points, style } = SQUARE_DATA[0];
+    const square1 = new Mobject(id, points, style);
+    const square2 = new Mobject(id, points, style);
+
+    square1.position.add(new THREE.Vector3(1, 0, 0));
+    square2.position.add(new THREE.Vector3(-1, 0, 0));
+    this.scene.add(square1);
+    this.scene.add(square2);
 
     // Animate it.
     const animate = () => {
       requestAnimationFrame(animate);
-      cube.rotation.x += 0.01;
-      cube.rotation.y += 0.01;
+      square1.rotation.z += 0.01;
+      square2.rotation.z += 0.01;
       this.renderer.render(this.scene, this.camera);
     };
     animate();
