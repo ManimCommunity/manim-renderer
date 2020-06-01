@@ -1,7 +1,7 @@
 <template>
   <div>
     <canvas class="renderer-element" ref="renderer" />
-    <button @click="()=>controls.reset()">Reset camera</button>
+    <button @click="()=>controls.reset()">reset camera</button>
   </div>
 </template>
 
@@ -50,9 +50,9 @@ export default {
     this.aspectRatio = 16 / 9;
     this.rendererHeight = 480; // Set to 720 for 720p
     this.sceneHeight = 8;
-    this.cameraNear = 1; // z = 2
-    this.cameraFar = 5; // z = -2
-    this.cameraZPosition = 3;
+    this.cameraNear = 1; // z = 10
+    this.cameraFar = 21; // z = -10
+    this.cameraZPosition = 11;
 
     this.scene = null;
     this.camera = null;
@@ -125,4 +125,7 @@ export default {
 </script>
 
 <style>
+body {
+  margin: 0;
+}
 </style>
