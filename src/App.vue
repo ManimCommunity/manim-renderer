@@ -1,7 +1,7 @@
 <template>
   <div>
     <canvas class="renderer-element" ref="renderer" />
-    <button @click="()=>controls.reset()">reset camera</button>
+    <v-btn @click="()=>controls.reset()">reset camera</v-btn>
   </div>
 </template>
 
