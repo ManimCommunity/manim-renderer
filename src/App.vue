@@ -1,8 +1,11 @@
 <template>
-  <div>
-    <canvas class="renderer-element" ref="renderer" />
-    <v-btn @click="()=>controls.reset()">reset camera</v-btn>
-  </div>
+  <v-app>
+    <div class="d-flex flex-column align-start">
+      <canvas class="renderer-element" ref="renderer" />
+      <v-btn @click="()=>controls.reset()">reset camera</v-btn>
+      <v-btn @click="()=>requestFrame()">request frame</v-btn>
+    </div>
+  </v-app>
 </template>
 
 <script>
@@ -120,6 +123,11 @@ export default {
       this.renderer.render(this.scene, this.camera);
     };
     animate();
+  },
+  methods: {
+    requestFrame() {
+      console.log("frame requested");
+    }
   }
 };
 </script>
