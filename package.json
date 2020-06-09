@@ -13,8 +13,11 @@
   },
   "main": "background.js",
   "dependencies": {
+    "@grpc/grpc-js": "^1.0.5",
+    "@grpc/proto-loader": "^0.5.4",
     "core-js": "^3.6.5",
     "eslint-plugin-vue": "^6.2.2",
+    "google-auth-library": "^6.0.1",
     "material-design-icons-iconfont": "^5.0.1",
     "three": "^0.117.1",
     "threejs-meshline": "^2.0.11",

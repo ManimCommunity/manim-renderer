@@ -13,6 +13,7 @@
 import * as THREE from "three";
 import { Mobject } from "./Mobject.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import frameServerClient from "./frame_server_client.js";
 
 const SQUARE_DATA = [
   {
@@ -126,7 +127,13 @@ export default {
   },
   methods: {
     requestFrame() {
-      console.log("frame requested");
+      frameServerClient.getFrameAtTime({ time: 0.0 }, function(err, response) {
+        if (err) {
+          console.error(err);
+        } else {
+          console.log(response);
+        }
+      });
     }
   }
 };
