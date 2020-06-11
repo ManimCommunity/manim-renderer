@@ -13,3 +13,11 @@ export function convertSnakeCaseDictToCamelCase(dict) {
   }
   return camelCaseDict;
 }
+
+export function extractMobjectProto(mobjectProto) {
+  let points = [];
+  for (let point of mobjectProto.points) {
+    points.push([point.x, point.y, point.z]);
+  }
+  return [mobjectProto.id, points, mobjectProto.style];
+}

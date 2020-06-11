@@ -3,7 +3,7 @@
     <div class="d-flex flex-column align-start">
       <canvas class="renderer-element" ref="renderer" />
       <v-btn @click="()=>controls.reset()">reset camera</v-btn>
-      <v-btn @click="()=>requestFrame()">request frame</v-btn>
+      <v-btn @click="()=>requestFrame()">request frame @ t={{time}}</v-btn>
     </div>
   </v-app>
 </template>
@@ -14,6 +14,7 @@ import * as THREE from "three";
 import { Mobject } from "./Mobject.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import frameClient from "./FrameClient.js";
+import * as utils from "./utils.js";
 
 const SQUARE_DATA = [
   {
@@ -49,6 +50,11 @@ const SQUARE_DATA = [
 export default {
   name: "App",
   components: {},
+  data() {
+    return {
+      time: 0
+    };
+  },
   created() {
     this.fps = 15;
     this.aspectRatio = 16 / 9;
@@ -121,18 +127,37 @@ export default {
       requestAnimationFrame(animate);
       square1.rotation.z += 0.01;
       square2.rotation.z += 0.01;
+
+      // this.requestFrame();
+
       this.renderer.render(this.scene, this.camera);
     };
     animate();
   },
   methods: {
     requestFrame() {
-      frameClient.getFrameAtTime({ time: 0.0 }, function(err, response) {
+      frameClient.getFrameAtTime({ time: this.time }, (err, response) => {
         if (err) {
           console.error(err);
         } else {
-          console.log("Frame:", response);
+          let [id, points, style] = utils.extractMobjectProto(
+            response.mobjects[0]
+          );
+
+          if (id in this.mobjectDict) {
+            this.mobjectDict[id].update(
+              points,
+              style,
+              /*needsRedraw=*/ true,
+              /*needsTriangulation=*/ true
+            );
+          } else {
+            let mob = new Mobject(id, points, style);
+            this.mobjectDict[mob.id] = mob;
+            this.scene.add(mob);
+          }
         }
+        this.time += 1 / 60;
       });
     }
   }
