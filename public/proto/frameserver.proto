@@ -5,7 +5,7 @@ package frameserver;
 service FrameServer {
     // Updates the scene to the specified time and returns a serialization of
     // the frame at that time.
-    rpc GetFrameAtTime (FrameRequest) returns (FrameResponse);
+    rpc GetFrameAtTime (FrameRequest) returns (FrameResponse) {}
 }
 
 message FrameRequest {
@@ -16,13 +16,19 @@ message Style {
     string fill_color = 1;
     float fill_opacity = 2;
     string stroke_color = 3;
-    float stroke_width = 4;
-    float stroke_opacity = 5;
+    float stroke_opacity = 4;
+    float stroke_width = 5;
+}
+
+message Point {
+    float x = 1;
+    float y = 2;
+    float z = 3;
 }
 
 message MobjectData {
     int64 id = 1;
-    repeated float points = 2;
+    repeated Point points = 2;
     Style style = 3;
 }
 
