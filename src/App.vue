@@ -3,7 +3,7 @@
     <div class="d-flex flex-column align-start">
       <canvas class="renderer-element" ref="renderer" />
       <v-btn @click="()=>controls.reset()">reset camera</v-btn>
-      <v-btn @click="()=>requestFrame()">request frame @ t={{time}}</v-btn>
+      <v-btn @click="()=>play(animationStartTime)">play</v-btn>
     </div>
   </v-app>
 </template>
@@ -52,7 +52,7 @@ export default {
   components: {},
   data() {
     return {
-      time: 0
+      animationStartTime: null
     };
   },
   created() {
@@ -112,53 +112,67 @@ export default {
     // Controls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
 
-    // Add something.
-    const { id, points, style } = SQUARE_DATA[0];
-    const square1 = new Mobject(id, points, style);
-    const square2 = new Mobject(id, points, style);
+    // // Add something.
+    // const { id, points, style } = SQUARE_DATA[0];
+    // const square1 = new Mobject(id, points, style);
+    // const square2 = new Mobject(id, points, style);
 
-    square1.position.add(new THREE.Vector3(1, 0, 0));
-    square2.position.add(new THREE.Vector3(-1, 0, 0));
-    this.scene.add(square1);
-    this.scene.add(square2);
+    // square1.position.add(new THREE.Vector3(1, 0, 0));
+    // square2.position.add(new THREE.Vector3(-1, 0, 0));
+    // this.scene.add(square1);
+    // this.scene.add(square2);
 
-    // Animate it.
-    const animate = () => {
-      requestAnimationFrame(animate);
-      square1.rotation.z += 0.01;
-      square2.rotation.z += 0.01;
+    // // Animate it.
+    // const animate = () => {
+    //   requestAnimationFrame(animate);
+    //   square1.rotation.z += 0.01;
+    //   square2.rotation.z += 0.01;
 
-      // this.requestFrame();
-
-      this.renderer.render(this.scene, this.camera);
-    };
-    animate();
+    //   this.renderer.render(this.scene, this.camera);
+    // };
+    // animate();
   },
   methods: {
-    requestFrame() {
-      frameClient.getFrameAtTime({ time: this.time }, (err, response) => {
-        if (err) {
-          console.error(err);
-        } else {
-          let [id, points, style] = utils.extractMobjectProto(
-            response.mobjects[0]
-          );
+    play(currentTime) {
+      if (this.animationStartTime === null) {
+        this.animationStartTime = currentTime;
+      }
+      let requestTime = (currentTime - this.animationStartTime) / 1000;
 
-          if (id in this.mobjectDict) {
-            this.mobjectDict[id].update(
-              points,
-              style,
-              /*needsRedraw=*/ true,
-              /*needsTriangulation=*/ true
-            );
-          } else {
-            let mob = new Mobject(id, points, style);
-            this.mobjectDict[mob.id] = mob;
-            this.scene.add(mob);
-          }
+      console.log(requestTime);
+      frameClient.getFrameAtTime({ time: requestTime }, (err, response) => {
+        console.log(response);
+        if (response.data_available) {
+          this.updateSceneWithFrameResponse(err, response);
+          requestAnimationFrame(this.play);
         }
-        this.time += 1 / 60;
       });
+    },
+    updateSceneWithFrameResponse(err, response) {
+      if (err) {
+        console.error(err);
+        return;
+      }
+
+      for (let mob of response.mobjects) {
+        let [id, points, style] = utils.extractMobjectProto(
+          response.mobjects[0]
+        );
+
+        if (id in this.mobjectDict) {
+          this.mobjectDict[id].update(
+            points,
+            style,
+            /*needsRedraw=*/ true,
+            /*needsTriangulation=*/ true
+          );
+        } else {
+          let mob = new Mobject(id, points, style);
+          this.mobjectDict[id] = mob;
+          this.scene.add(mob);
+        }
+      }
+      this.renderer.render(this.scene, this.camera);
     }
   }
 };
