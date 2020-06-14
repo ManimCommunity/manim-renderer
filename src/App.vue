@@ -3,7 +3,7 @@
     <div class="d-flex flex-column align-start">
       <canvas class="renderer-element" ref="renderer" />
       <v-btn @click="()=>controls.reset()">reset camera</v-btn>
-      <v-btn @click="()=>play(animationStartTime)">play</v-btn>
+      <v-btn @click="()=>startAnimation()">play</v-btn>
     </div>
   </v-app>
 </template>
@@ -14,7 +14,19 @@ import * as THREE from "three";
 import { Mobject } from "./Mobject.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import frameClient from "./FrameClient.js";
+import renderServer from "./RenderServer.js";
 import * as utils from "./utils.js";
+
+var PROTO_PATH = __static + "/proto/renderserver.proto";
+var grpc = require("@grpc/grpc-js");
+var protoLoader = require("@grpc/proto-loader");
+var packageDefinition = protoLoader.loadSync(PROTO_PATH, {
+  keepCase: true,
+  longs: String,
+  enums: String,
+  defaults: true,
+  oneofs: true
+});
 
 const SQUARE_DATA = [
   {
@@ -73,7 +85,7 @@ export default {
 
     // Maps Mobject IDs from Python to their respective Mobjects in
     // Javascript.
-    this.mobjectDict = {};
+    this.mobjectDict = new Map();
   },
   computed: {
     sceneWidth() {
@@ -112,6 +124,8 @@ export default {
     // Controls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
 
+    this.renderServer = this.getRenderServer();
+
     // // Add something.
     // const { id, points, style } = SQUARE_DATA[0];
     // const square1 = new Mobject(id, points, style);
@@ -133,18 +147,18 @@ export default {
     // animate();
   },
   methods: {
-    play(currentTime) {
-      if (this.animationStartTime === null) {
+    play(currentTime, setStartTime) {
+      if (setStartTime) {
         this.animationStartTime = currentTime;
       }
       let requestTime = (currentTime - this.animationStartTime) / 1000;
 
-      console.log(requestTime);
       frameClient.getFrameAtTime({ time: requestTime }, (err, response) => {
-        console.log(response);
-        if (response.data_available) {
+        if (!response.animation_finished) {
           this.updateSceneWithFrameResponse(err, response);
           requestAnimationFrame(this.play);
+        } else {
+          console.log("waiting on next animation...");
         }
       });
     },
@@ -154,11 +168,11 @@ export default {
         return;
       }
 
+      let currentFrameMobjectIds = new Set();
       for (let mob of response.mobjects) {
-        let [id, points, style] = utils.extractMobjectProto(
-          response.mobjects[0]
-        );
+        let [id, points, style] = utils.extractMobjectProto(mob);
 
+        currentFrameMobjectIds.add(id);
         if (id in this.mobjectDict) {
           this.mobjectDict[id].update(
             points,
@@ -172,13 +186,56 @@ export default {
           this.scene.add(mob);
         }
       }
+      // Remove each Mobject that isn't in the frame.
+      for (let i = this.scene.children.length - 1; i >= 0; i--) {
+        let child = this.scene.children[i];
+        if (!currentFrameMobjectIds.has(child.mobjectId)) {
+          this.scene.remove(child);
+        }
+      }
       this.renderer.render(this.scene, this.camera);
+    },
+    getRenderServer() {
+      var render_proto = grpc.loadPackageDefinition(packageDefinition)
+        .renderserver;
+
+      var renderServer = new grpc.Server();
+
+      renderServer.addService(render_proto.RenderServer.service, {
+        animationStatus: (call, callback) => {
+          callback(null, {});
+          this.startAnimation();
+        },
+        ack: (call, callback) => {
+          console.log("python called");
+          callback(null, {});
+        }
+      });
+
+      renderServer.bindAsync(
+        "localhost:50052",
+        grpc.ServerCredentials.createInsecure(),
+        (err, port) => {
+          if (err) {
+            console.error(err);
+            return;
+          }
+          renderServer.start();
+        }
+      );
+
+      this.renderServer = renderServer;
+    },
+    startAnimation() {
+      requestAnimationFrame(timeStamp =>
+        this.play(timeStamp, /*setStartTime=*/ true)
+      );
     }
   }
 };
 </script>
 
-<style lang="scss">
+<style>
 body {
   margin: 0;
 }

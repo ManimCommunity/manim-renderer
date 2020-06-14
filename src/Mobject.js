@@ -2,7 +2,6 @@ import * as THREE from "three";
 import { MeshLine, MeshLineMaterial } from "threejs-meshline";
 import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { MobjectFillBufferGeometry } from "./MobjectFillBufferGeometry.js";
-import * as utils from "./utils.js";
 
 const DEFAULT_STYLE = {
   strokeColor: 0xffffff,
@@ -18,10 +17,7 @@ class Mobject extends THREE.Group {
   constructor(id, points, style) {
     super();
     this.mobjectId = id;
-    this.style = Object.assign(
-      DEFAULT_STYLE,
-      utils.convertSnakeCaseDictToCamelCase(style)
-    );
+    this.style = Object.assign(DEFAULT_STYLE, style);
     this.shapes = this.computeShapes(points);
     this.fillMesh = new THREE.Mesh(
       this.computeFillGeometry(),

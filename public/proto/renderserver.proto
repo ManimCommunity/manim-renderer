@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package renderserver;
+
+service RenderServer {
+    // Used to signal that a new animation is ready to be animated.
+    rpc AnimationStatus (AnimationStatusRequest) returns (AnimationStatusResponse) {}
+
+    // Used to determine whether the server is running.
+    rpc Ack (AckRequest) returns (AckResponse) {}
+}
+
+message AnimationStatusRequest {}
+message AnimationStatusResponse {}
+message AckRequest {}
+message AckResponse {}

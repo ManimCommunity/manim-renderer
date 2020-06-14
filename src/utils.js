@@ -6,7 +6,7 @@ const snakeToCamel = (str) =>
       .replace("_", "")
   );
 
-export function convertSnakeCaseDictToCamelCase(dict) {
+export function snakeToCamelDict(dict) {
   let camelCaseDict = {};
   for (let [key, val] of Object.entries(dict)) {
     camelCaseDict[snakeToCamel(key)] = val;
@@ -19,5 +19,5 @@ export function extractMobjectProto(mobjectProto) {
   for (let point of mobjectProto.points) {
     points.push([point.x, point.y, point.z]);
   }
-  return [mobjectProto.id, points, mobjectProto.style];
+  return [mobjectProto.id, points, snakeToCamelDict(mobjectProto.style)];
 }
