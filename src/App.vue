@@ -3,7 +3,7 @@
     <div class="d-flex flex-column align-start">
       <canvas class="renderer-element" ref="renderer" />
       <v-btn @click="()=>controls.reset()">reset camera</v-btn>
-      <v-btn @click="()=>startAnimation()">play</v-btn>
+      <v-btn @click="()=>startAnimation()">animate</v-btn>
     </div>
   </v-app>
 </template>
@@ -32,9 +32,7 @@ export default {
   name: "App",
   components: {},
   data() {
-    return {
-      animationStartTime: null
-    };
+    return {};
   },
   created() {
     this.fps = 15;
@@ -60,6 +58,7 @@ export default {
 
     // This will be instantiated when rendering is begun.
     this.frameClient = null;
+    this.animationStartTime = null;
   },
   computed: {
     sceneWidth() {
@@ -97,36 +96,47 @@ export default {
 
     // Controls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+
+    // Start render loop.
+    this.idleRender();
   },
   methods: {
-    play(currentTime, setStartTime) {
-      if (setStartTime) {
-        this.animationStartTime = currentTime;
-      }
-      let requestTime = (currentTime - this.animationStartTime) / 1000;
-
+    idleRender() {
+      this.renderer.render(this.scene, this.camera);
+      requestAnimationFrame(this.idleRender);
+    },
+    animate(currentTime) {
       this.frameClient.getFrameAtTime(
-        { time: requestTime },
+        { time: (currentTime - this.animationStartTime) / 1000 },
         (err, response) => {
           if (err) {
             console.error(err);
             return;
           }
-
           if (!response.animation_finished) {
             this.updateSceneWithFrameResponse(response);
-            requestAnimationFrame(this.play);
+            this.renderer.render(this.scene, this.camera);
+            requestAnimationFrame(this.animate);
           } else {
             console.log("waiting on next animation...");
+            requestAnimationFrame(this.idleRender);
           }
         }
       );
+    },
+    startAnimation() {
+      if (this.frameClient === null) {
+        this.frameClient = this.getFrameClient();
+      }
+      requestAnimationFrame(timeStamp => {
+        this.animationStartTime = timeStamp;
+        this.animate(timeStamp);
+      });
     },
     updateSceneWithFrameResponse(response) {
       let currentFrameMobjectIds = new Set();
       for (let mob of response.mobjects) {
         let [id, points, style] = utils.extractMobjectProto(mob);
-
         currentFrameMobjectIds.add(id);
         if (id in this.mobjectDict) {
           this.mobjectDict[id].update(
@@ -148,7 +158,6 @@ export default {
           this.scene.remove(child);
         }
       }
-      this.renderer.render(this.scene, this.camera);
     },
     getRenderServer() {
       const packageDefinition = protoLoader.loadSync(
@@ -157,7 +166,6 @@ export default {
       );
       const renderProto = grpc.loadPackageDefinition(packageDefinition)
         .renderserver;
-
       const renderServer = new grpc.Server();
       renderServer.addService(renderProto.RenderServer.service, {
         animationStatus: (call, callback) => {
@@ -169,7 +177,6 @@ export default {
           callback(null, {});
         }
       });
-
       renderServer.bindAsync(
         "localhost:50052",
         grpc.ServerCredentials.createInsecure(),
@@ -181,7 +188,6 @@ export default {
           renderServer.start();
         }
       );
-
       return renderServer;
     },
     getFrameClient() {
@@ -191,18 +197,9 @@ export default {
       );
       const frameProto = grpc.loadPackageDefinition(packageDefinition)
         .frameserver;
-
       return new frameProto.FrameServer(
         "localhost:50051",
         grpc.credentials.createInsecure()
-      );
-    },
-    startAnimation() {
-      if (this.frameClient === null) {
-        this.frameClient = this.getFrameClient();
-      }
-      requestAnimationFrame(timeStamp =>
-        this.play(timeStamp, /*setStartTime=*/ true)
       );
     }
   }
