@@ -13,51 +13,20 @@
 import * as THREE from "three";
 import { Mobject } from "./Mobject.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import frameClient from "./FrameClient.js";
-import renderServer from "./RenderServer.js";
 import * as utils from "./utils.js";
 
-var PROTO_PATH = __static + "/proto/renderserver.proto";
-var grpc = require("@grpc/grpc-js");
-var protoLoader = require("@grpc/proto-loader");
-var packageDefinition = protoLoader.loadSync(PROTO_PATH, {
+const path = require("path");
+const grpc = require("@grpc/grpc-js");
+const protoLoader = require("@grpc/proto-loader");
+
+const PROTO_DIR = __static + "/proto";
+const LOAD_OPTIONS = {
   keepCase: true,
   longs: String,
   enums: String,
   defaults: true,
   oneofs: true
-});
-
-const SQUARE_DATA = [
-  {
-    points: [
-      [-1.1102230246251565e-16, 1.414213562373095, 0.0],
-      [-0.4714045207910317, 0.9428090415820634, 8.164311994315686e-17],
-      [-0.9428090415820634, 0.4714045207910317, 1.6328623988631375e-16],
-      [-1.414213562373095, -1.1102230246251565e-16, 2.4492935982947064e-16],
-      [-1.414213562373095, -1.1102230246251565e-16, 2.4492935982947064e-16],
-      [-0.9428090415820634, -0.4714045207910317, 1.6328623988631378e-16],
-      [-0.4714045207910317, -0.9428090415820634, 8.164311994315689e-17],
-      [1.1102230246251565e-16, -1.414213562373095, 0.0],
-      [1.1102230246251565e-16, -1.414213562373095, 0.0],
-      [0.4714045207910317, -0.9428090415820634, -8.164311994315686e-17],
-      [0.9428090415820634, -0.4714045207910317, -1.6328623988631375e-16],
-      [1.414213562373095, 1.1102230246251565e-16, -2.4492935982947064e-16],
-      [1.414213562373095, 1.1102230246251565e-16, -2.4492935982947064e-16],
-      [0.9428090415820634, 0.4714045207910317, -1.6328623988631378e-16],
-      [0.4714045207910317, 0.9428090415820634, -8.164311994315689e-17],
-      [-1.1102230246251565e-16, 1.414213562373095, 0.0]
-    ],
-    style: {
-      fill_color: "#fff",
-      fill_opacity: 0.0,
-      stroke_color: "#fff",
-      stroke_width: 4,
-      stroke_opacity: 1.0
-    },
-    id: 140378656248304
-  }
-];
+};
 
 export default {
   name: "App",
@@ -86,6 +55,11 @@ export default {
     // Maps Mobject IDs from Python to their respective Mobjects in
     // Javascript.
     this.mobjectDict = new Map();
+
+    this.renderServer = this.getRenderServer();
+
+    // This will be instantiated when rendering is begun.
+    this.frameClient = null;
   },
   computed: {
     sceneWidth() {
@@ -123,28 +97,6 @@ export default {
 
     // Controls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-
-    this.renderServer = this.getRenderServer();
-
-    // // Add something.
-    // const { id, points, style } = SQUARE_DATA[0];
-    // const square1 = new Mobject(id, points, style);
-    // const square2 = new Mobject(id, points, style);
-
-    // square1.position.add(new THREE.Vector3(1, 0, 0));
-    // square2.position.add(new THREE.Vector3(-1, 0, 0));
-    // this.scene.add(square1);
-    // this.scene.add(square2);
-
-    // // Animate it.
-    // const animate = () => {
-    //   requestAnimationFrame(animate);
-    //   square1.rotation.z += 0.01;
-    //   square2.rotation.z += 0.01;
-
-    //   this.renderer.render(this.scene, this.camera);
-    // };
-    // animate();
   },
   methods: {
     play(currentTime, setStartTime) {
@@ -153,21 +105,24 @@ export default {
       }
       let requestTime = (currentTime - this.animationStartTime) / 1000;
 
-      frameClient.getFrameAtTime({ time: requestTime }, (err, response) => {
-        if (!response.animation_finished) {
-          this.updateSceneWithFrameResponse(err, response);
-          requestAnimationFrame(this.play);
-        } else {
-          console.log("waiting on next animation...");
-        }
-      });
-    },
-    updateSceneWithFrameResponse(err, response) {
-      if (err) {
-        console.error(err);
-        return;
-      }
+      this.frameClient.getFrameAtTime(
+        { time: requestTime },
+        (err, response) => {
+          if (err) {
+            console.error(err);
+            return;
+          }
 
+          if (!response.animation_finished) {
+            this.updateSceneWithFrameResponse(response);
+            requestAnimationFrame(this.play);
+          } else {
+            console.log("waiting on next animation...");
+          }
+        }
+      );
+    },
+    updateSceneWithFrameResponse(response) {
       let currentFrameMobjectIds = new Set();
       for (let mob of response.mobjects) {
         let [id, points, style] = utils.extractMobjectProto(mob);
@@ -196,12 +151,15 @@ export default {
       this.renderer.render(this.scene, this.camera);
     },
     getRenderServer() {
-      var render_proto = grpc.loadPackageDefinition(packageDefinition)
+      const packageDefinition = protoLoader.loadSync(
+        path.join(PROTO_DIR, "renderserver.proto"),
+        LOAD_OPTIONS
+      );
+      const renderProto = grpc.loadPackageDefinition(packageDefinition)
         .renderserver;
 
-      var renderServer = new grpc.Server();
-
-      renderServer.addService(render_proto.RenderServer.service, {
+      const renderServer = new grpc.Server();
+      renderServer.addService(renderProto.RenderServer.service, {
         animationStatus: (call, callback) => {
           callback(null, {});
           this.startAnimation();
@@ -224,9 +182,25 @@ export default {
         }
       );
 
-      this.renderServer = renderServer;
+      return renderServer;
+    },
+    getFrameClient() {
+      const packageDefinition = protoLoader.loadSync(
+        path.join(PROTO_DIR, "frameserver.proto"),
+        LOAD_OPTIONS
+      );
+      const frameProto = grpc.loadPackageDefinition(packageDefinition)
+        .frameserver;
+
+      return new frameProto.FrameServer(
+        "localhost:50051",
+        grpc.credentials.createInsecure()
+      );
     },
     startAnimation() {
+      if (this.frameClient === null) {
+        this.frameClient = this.getFrameClient();
+      }
       requestAnimationFrame(timeStamp =>
         this.play(timeStamp, /*setStartTime=*/ true)
       );
