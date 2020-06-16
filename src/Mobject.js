@@ -90,7 +90,7 @@ class Mobject extends THREE.Group {
         }
       }
     }
-    return shapePath.toShapes();
+    return shapePath.toShapes(/*isCCW=*/ true);
   }
 
   createMeshLineGeometries(shape) {

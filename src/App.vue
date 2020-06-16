@@ -59,6 +59,7 @@ export default {
     // This will be instantiated when rendering is begun.
     this.frameClient = null;
     this.animationStartTime = null;
+    this.waitStopTime = null;
   },
   computed: {
     sceneWidth() {
@@ -106,6 +107,15 @@ export default {
       requestAnimationFrame(this.idleRender);
     },
     animate(currentTime) {
+      if (this.waitStopTime !== null) {
+        if (currentTime < this.waitStopTime) {
+          this.renderer.render(this.scene, this.camera);
+          requestAnimationFrame(this.animate);
+          return;
+        } else {
+          this.waitStopTime = null;
+        }
+      }
       this.frameClient.getFrameAtTime(
         { time: (currentTime - this.animationStartTime) / 1000 },
         (err, response) => {
@@ -114,11 +124,13 @@ export default {
             return;
           }
           if (!response.animation_finished) {
+            if (response.wait_time != 0) {
+              this.waitStopTime = currentTime + response.wait_time * 1000;
+            }
             this.updateSceneWithFrameResponse(response);
             this.renderer.render(this.scene, this.camera);
             requestAnimationFrame(this.animate);
           } else {
-            console.log("waiting on next animation...");
             requestAnimationFrame(this.idleRender);
           }
         }
