@@ -146,10 +146,10 @@ export default {
       });
     },
     updateSceneWithFrameResponse(response) {
-      let currentFrameMobjectIds = new Set();
-      for (let mob of response.mobjects) {
-        let [id, points, style] = utils.extractMobjectProto(mob);
-        currentFrameMobjectIds.add(id);
+      this.scene.children = [];
+      for (let mobject_proto of response.mobjects) {
+        let [id, points, style] = utils.extractMobjectProto(mobject_proto);
+        let mobject_mesh;
         if (id in this.mobjectDict) {
           this.mobjectDict[id].update(
             points,
@@ -157,18 +157,12 @@ export default {
             /*needsRedraw=*/ true,
             /*needsTriangulation=*/ true
           );
+          mobject_mesh = this.mobjectDict[id];
         } else {
-          let mob = new Mobject(id, points, style);
-          this.mobjectDict[id] = mob;
-          this.scene.add(mob);
+          mobject_mesh = new Mobject(id, points, style);
+          this.mobjectDict[id] = mobject_mesh;
         }
-      }
-      // Remove each Mobject that isn't in the frame.
-      for (let i = this.scene.children.length - 1; i >= 0; i--) {
-        let child = this.scene.children[i];
-        if (!currentFrameMobjectIds.has(child.mobjectId)) {
-          this.scene.remove(child);
-        }
+        this.scene.add(mobject_mesh);
       }
     },
     getRenderServer() {
