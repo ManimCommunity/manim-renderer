@@ -19,7 +19,12 @@ export function extractMobjectProto(mobjectProto) {
   for (let point of mobjectProto.points) {
     points.push([point.x, point.y, point.z]);
   }
-  return [mobjectProto.id, points, snakeToCamelDict(mobjectProto.style)];
+  return [
+    mobjectProto.id,
+    points,
+    snakeToCamelDict(mobjectProto.style),
+    mobjectProto.needs_redraw,
+  ];
 }
 
 export function allClose(arr1, arr2) {

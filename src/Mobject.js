@@ -33,7 +33,7 @@ class Mobject extends THREE.Group {
     this.add(this.strokeMesh);
   }
 
-  update(points, style, needsRedraw /* needsTriangulation */) {
+  update(points, style, needsRedraw) {
     if (needsRedraw) {
       this.shapes = this.computeShapes(points);
 

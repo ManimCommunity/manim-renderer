@@ -148,15 +148,12 @@ export default {
     updateSceneWithFrameResponse(response) {
       this.scene.children = [];
       for (let mobject_proto of response.mobjects) {
-        let [id, points, style] = utils.extractMobjectProto(mobject_proto);
+        let [id, points, style, needsRedraw] = utils.extractMobjectProto(
+          mobject_proto
+        );
         let mobject_mesh;
         if (id in this.mobjectDict) {
-          this.mobjectDict[id].update(
-            points,
-            style,
-            /*needsRedraw=*/ true,
-            /*needsTriangulation=*/ true
-          );
+          this.mobjectDict[id].update(points, style, needsRedraw);
           mobject_mesh = this.mobjectDict[id];
         } else {
           mobject_mesh = new Mobject(id, points, style);
