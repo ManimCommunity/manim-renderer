@@ -124,8 +124,8 @@ export default {
             return;
           }
           if (!response.animation_finished) {
-            if (response.wait_time != 0) {
-              this.waitStopTime = currentTime + response.wait_time * 1000;
+            if (response.duration != 0) {
+              this.waitStopTime = currentTime + response.duration * 1000;
             }
             this.updateSceneWithFrameResponse(response);
             this.renderer.render(this.scene, this.camera);
@@ -179,7 +179,6 @@ export default {
           this.startAnimation();
         },
         ack: (call, callback) => {
-          console.log("python called");
           callback(null, {});
         }
       });

@@ -34,6 +34,6 @@ message MobjectData {
 
 message FrameResponse {
     repeated MobjectData mobjects = 1;
-    float wait_time = 2;
-    bool animation_finished = 3;
+    bool animation_finished = 2;
+    float duration = 3;
 }
