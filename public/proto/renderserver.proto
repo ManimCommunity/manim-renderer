@@ -6,11 +6,14 @@ service RenderServer {
     // Used to signal that a new animation is ready to be animated.
     rpc AnimationStatus (AnimationStatusRequest) returns (AnimationStatusResponse) {}
 
-    // Used to determine whether the server is running.
-    rpc Ack (AckRequest) returns (AckResponse) {}
+    // Used to signal when manim starts and stops.
+    rpc ManimStatus (ManimStatusRequest) returns (ManimStatusResponse) {}
 }
 
 message AnimationStatusRequest {}
 message AnimationStatusResponse {}
-message AckRequest {}
-message AckResponse {}
+message ManimStatusRequest {
+    string scene_name = 1;
+    bool stopping = 2;
+}
+message ManimStatusResponse {}

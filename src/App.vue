@@ -1,6 +1,15 @@
 <template>
   <v-app>
     <div class="d-flex flex-column align-start">
+      <v-toolbar :width="rendererWidth">
+        <div class="full-width d-flex justify-space-between">
+          <div>{{ this.sceneName }}</div>
+          <span>
+            <v-icon :color="pythonReady ? 'black' : 'gray'">mdi-language-python</v-icon>
+            <v-icon :color="pythonReady ? 'green' : 'gray'" class="text-caption">mdi-circle</v-icon>
+          </span>
+        </div>
+      </v-toolbar>
       <canvas class="renderer-element" ref="renderer" />
       <v-btn @click="()=>controls.reset()">reset camera</v-btn>
       <v-btn @click="()=>startAnimation()">animate</v-btn>
@@ -32,7 +41,10 @@ export default {
   name: "App",
   components: {},
   data() {
-    return {};
+    return {
+      pythonReady: false,
+      sceneName: null
+    };
   },
   created() {
     this.fps = 15;
@@ -100,6 +112,14 @@ export default {
 
     // Start render loop.
     this.idleRender();
+
+    this.frameClient = this.getFrameClient();
+    this.frameClient.rendererStatus({}, (err, response) => {
+      if (!err) {
+        this.pythonReady = true;
+        this.sceneName = response.scene_name;
+      }
+    });
   },
   methods: {
     idleRender() {
@@ -137,9 +157,6 @@ export default {
       );
     },
     startAnimation() {
-      if (this.frameClient === null) {
-        this.frameClient = this.getFrameClient();
-      }
       requestAnimationFrame(timeStamp => {
         this.animationStartTime = timeStamp;
         this.animate(timeStamp);
@@ -175,7 +192,14 @@ export default {
           callback(null, {});
           this.startAnimation();
         },
-        ack: (call, callback) => {
+        manimStatus: (call, callback) => {
+          if (call.request.stopping) {
+            this.pythonReady = false;
+          } else {
+            this.pythonReady = true;
+            this.sceneName = call.request.scene_name;
+            this.scene.children = [];
+          }
           callback(null, {});
         }
       });
@@ -209,6 +233,9 @@ export default {
 </script>
 
 <style>
+.full-width {
+  width: 100%;
+}
 body {
   margin: 0;
 }
