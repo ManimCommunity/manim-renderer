@@ -15,7 +15,10 @@
         <Timeline :animations="animations" :index="animationIndex" :offset="animationOffset" />
       </div>
       <div class="d-flex">
-        <v-btn @click="()=>startAnimation(/*resetAnimations=*/true)">animate</v-btn>
+        <v-btn
+          @click="()=>startAnimation(/*resetAnimations=*/true)"
+          :disabled="!pythonReady"
+        >animate</v-btn>
         <v-btn @click="()=>controls.reset()">reset camera</v-btn>
       </div>
     </div>
