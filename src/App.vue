@@ -10,9 +10,14 @@
           </span>
         </div>
       </v-toolbar>
-      <canvas class="renderer-element" ref="renderer" />
-      <v-btn @click="()=>controls.reset()">reset camera</v-btn>
-      <v-btn @click="()=>startAnimation()">animate</v-btn>
+      <div>
+        <canvas class="renderer-element" ref="renderer" />
+        <Timeline :animations="animations" :index="0" :offset="animationOffset" />
+      </div>
+      <div class="d-flex">
+        <v-btn @click="()=>startAnimation()">animate</v-btn>
+        <v-btn @click="()=>controls.reset()">reset camera</v-btn>
+      </div>
     </div>
   </v-app>
 </template>
@@ -23,6 +28,7 @@ import * as THREE from "three";
 import { Mobject } from "./Mobject.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as utils from "./utils.js";
+import Timeline from "./Timeline.vue";
 
 const path = require("path");
 const grpc = require("@grpc/grpc-js");
@@ -39,11 +45,18 @@ const LOAD_OPTIONS = {
 
 export default {
   name: "App",
-  components: {},
+  components: { Timeline },
   data() {
     return {
       pythonReady: false,
-      sceneName: null
+      sceneName: null,
+      animationOffset: 0,
+      animations: [
+        {
+          runtime: 1,
+          className: "test"
+        }
+      ]
     };
   },
   created() {
@@ -68,10 +81,10 @@ export default {
 
     this.renderServer = this.getRenderServer();
 
-    // This will be instantiated when rendering is begun.
     this.frameClient = null;
-    this.animationStartTime = null;
-    this.waitStopTime = null;
+    this.playStartTimestamp = null;
+    this.waitStopTimestamp = null;
+    this.animationWidth = 45;
   },
   computed: {
     sceneWidth() {
@@ -126,18 +139,20 @@ export default {
       this.renderer.render(this.scene, this.camera);
       requestAnimationFrame(this.idleRender);
     },
-    animate(currentTime) {
-      if (this.waitStopTime !== null) {
-        if (currentTime < this.waitStopTime) {
+    animate(currentTimestamp) {
+      this.animationOffset =
+        (currentTimestamp - this.playStartTimestamp) / 1000;
+      if (this.waitStopTimestamp !== null) {
+        if (currentTimestamp < this.waitStopTimestamp) {
           this.renderer.render(this.scene, this.camera);
           requestAnimationFrame(this.animate);
           return;
         } else {
-          this.waitStopTime = null;
+          this.waitStopTimestamp = null;
         }
       }
       this.frameClient.getFrameAtTime(
-        { time: (currentTime - this.animationStartTime) / 1000 },
+        { time: this.animationOffset },
         (err, response) => {
           if (err) {
             console.error(err);
@@ -145,7 +160,8 @@ export default {
           }
           if (!response.animation_finished) {
             if (response.duration != 0) {
-              this.waitStopTime = currentTime + response.duration * 1000;
+              this.waitStopTimestamp =
+                currentTimestamp + response.duration * 1000;
             }
             this.updateSceneWithFrameResponse(response);
             this.renderer.render(this.scene, this.camera);
@@ -158,7 +174,8 @@ export default {
     },
     startAnimation() {
       requestAnimationFrame(timeStamp => {
-        this.animationStartTime = timeStamp;
+        this.animationOffset = 0;
+        this.playStartTimestamp = timeStamp;
         this.animate(timeStamp);
       });
     },
