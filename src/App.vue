@@ -10,12 +10,12 @@
           </span>
         </div>
       </v-toolbar>
-      <div>
+      <div style="max-width: 853px">
         <canvas class="renderer-element" ref="renderer" />
         <Timeline :animations="animations" :index="animationIndex" :offset="animationOffset" />
       </div>
       <div class="d-flex">
-        <v-btn @click="()=>startAnimation()">animate</v-btn>
+        <v-btn @click="()=>startAnimation(/*resetAnimations=*/true)">animate</v-btn>
         <v-btn @click="()=>controls.reset()">reset camera</v-btn>
       </div>
     </div>
@@ -156,12 +156,12 @@ export default {
           }
           if (response.animation_name !== "") {
             this.animations.push({
-              runtime: 1,
+              runtime: response.duration,
               className: response.animation_name
             });
           }
           if (!response.animation_finished) {
-            if (response.duration != 0) {
+            if (response.animation_name === "Wait" && response.duration != 0) {
               this.waitStopTimestamp =
                 currentTimestamp + response.duration * 1000;
             }
@@ -175,8 +175,12 @@ export default {
         }
       );
     },
-    startAnimation() {
+    startAnimation(resetAnimations = false) {
       requestAnimationFrame(timeStamp => {
+        if (resetAnimations) {
+          this.animationIndex = 0;
+          this.animations = [];
+        }
         this.animationOffset = 0;
         this.playStartTimestamp = timeStamp;
         this.animate(timeStamp);
@@ -219,6 +223,9 @@ export default {
             this.pythonReady = true;
             this.sceneName = call.request.scene_name;
             this.scene.children = [];
+            this.animations = [];
+            this.animationIndex = 0;
+            this.animationOffset = 0;
           }
           callback(null, {});
         }

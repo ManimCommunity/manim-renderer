@@ -16,7 +16,7 @@
       }"
     >
       <v-card-title class="d-flex justify-center headline px-2">
-        <div class="keyframe-text">{{ animation.className }}</div>
+        <div class="text-subtitle-1">{{ animation.className }}</div>
       </v-card-title>
     </v-card>
     <div id="position-indicator" :style="timelineOffset" />
@@ -46,10 +46,7 @@ export default {
         cursorOffset += this.animations[i].runtime * this.animationWidth + 4;
       }
       if (this.index < this.animations.length) {
-        cursorOffset +=
-          this.offset *
-          this.animations[this.index].runtime *
-          this.animationWidth;
+        cursorOffset += this.offset * this.animationWidth;
       }
       return { left: cursorOffset + "px" };
     }
@@ -64,5 +61,11 @@ export default {
   width: 3px;
   position: absolute;
   border-radius: 2px;
+}
+.timeline {
+  height: 155px;
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 </style>
