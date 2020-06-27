@@ -1,5 +1,9 @@
 <template>
-  <v-card class="d-flex flex-nowrap align-center pa-1 timeline" color="grey lighten-3">
+  <v-card
+    class="d-flex flex-nowrap align-center pa-1 timeline"
+    color="grey lighten-3"
+    style="height: 100px"
+  >
     <v-card
       v-for="(animation, index) in animations"
       v-bind:key="index"
@@ -41,9 +45,12 @@ export default {
       for (let i = 0; i < this.index; i++) {
         cursorOffset += this.animations[i].runtime * this.animationWidth + 4;
       }
-      cursorOffset +=
-        this.offset * this.animations[this.index].runtime * this.animationWidth;
-      console.log(cursorOffset);
+      if (this.index < this.animations.length) {
+        cursorOffset +=
+          this.offset *
+          this.animations[this.index].runtime *
+          this.animationWidth;
+      }
       return { left: cursorOffset + "px" };
     }
   }

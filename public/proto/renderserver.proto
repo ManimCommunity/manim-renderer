@@ -10,10 +10,17 @@ service RenderServer {
     rpc ManimStatus (ManimStatusRequest) returns (ManimStatusResponse) {}
 }
 
+// Signifies that the next animation is ready to be rendered.
 message AnimationStatusRequest {}
 message AnimationStatusResponse {}
+
 message ManimStatusRequest {
+    // The name of the scene whose frames are currently being served. This is
+    // only seen if a javascript renderer is running prior to manim being
+    // started.
     string scene_name = 1;
+
+    // Indicates that no more frames will be served.
     bool stopping = 2;
 }
 message ManimStatusResponse {}

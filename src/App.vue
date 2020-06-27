@@ -12,7 +12,7 @@
       </v-toolbar>
       <div>
         <canvas class="renderer-element" ref="renderer" />
-        <Timeline :animations="animations" :index="0" :offset="animationOffset" />
+        <Timeline :animations="animations" :index="animationIndex" :offset="animationOffset" />
       </div>
       <div class="d-flex">
         <v-btn @click="()=>startAnimation()">animate</v-btn>
@@ -51,12 +51,8 @@ export default {
       pythonReady: false,
       sceneName: null,
       animationOffset: 0,
-      animations: [
-        {
-          runtime: 1,
-          className: "test"
-        }
-      ]
+      animationIndex: 0,
+      animations: []
     };
   },
   created() {
@@ -158,6 +154,12 @@ export default {
             console.error(err);
             return;
           }
+          if (response.animation_name !== "") {
+            this.animations.push({
+              runtime: 1,
+              className: response.animation_name
+            });
+          }
           if (!response.animation_finished) {
             if (response.duration != 0) {
               this.waitStopTimestamp =
@@ -167,6 +169,7 @@ export default {
             this.renderer.render(this.scene, this.camera);
             requestAnimationFrame(this.animate);
           } else {
+            this.animationIndex += 1;
             requestAnimationFrame(this.idleRender);
           }
         }
