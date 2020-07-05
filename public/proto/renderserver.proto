@@ -4,10 +4,10 @@ package renderserver;
 
 service RenderServer {
     // Used to signal that a new animation is ready to be animated.
-    rpc AnimationStatus (AnimationStatusRequest) returns (AnimationStatusResponse) {}
+    rpc AnimationStatus (AnimationStatusRequest) returns (AnimationStatusResponse);
 
     // Used to signal when manim starts and stops.
-    rpc ManimStatus (ManimStatusRequest) returns (ManimStatusResponse) {}
+    rpc ManimStatus (ManimStatusRequest) returns (ManimStatusResponse);
 }
 
 // Signifies that the next animation is ready to be rendered.

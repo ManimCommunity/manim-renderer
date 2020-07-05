@@ -14,13 +14,36 @@
         <canvas class="renderer-element" ref="renderer" />
         <Timeline :animations="animations" :index="animationIndex" :offset="animationOffset" />
       </div>
-      <div class="d-flex">
+      <div class="d-flex my-2">
         <v-btn
+          class="ml-2"
+          @click="()=>updateAnimationIndex(animationIndex - 1)"
+          :disabled="animationIndex === 0"
+          fab
+          small
+        >
+          <v-icon dark>mdi-skip-previous</v-icon>
+        </v-btn>
+        <v-btn
+          class="ml-2"
           @click="()=>startAnimation(/*resetAnimations=*/true)"
           :disabled="!pythonReady"
-        >animate</v-btn>
-        <v-btn @click="()=>controls.reset()">reset camera</v-btn>
+          fab
+          small
+        >
+          <v-icon dark>mdi-play</v-icon>
+        </v-btn>
+        <v-btn
+          class="ml-2"
+          @click="()=>updateAnimationIndex(animationIndex + 1)"
+          :disabled="animationIndex > animations.length - 1"
+          fab
+          small
+        >
+          <v-icon dark>mdi-skip-next</v-icon>
+        </v-btn>
       </div>
+      <v-btn @click="()=>controls.reset(animationIndex + 1)">reset camera</v-btn>
     </div>
   </v-app>
 </template>
@@ -257,6 +280,9 @@ export default {
         "localhost:50051",
         grpc.credentials.createInsecure()
       );
+    },
+    updateAnimationIndex(index) {
+      console.log(index);
     }
   }
 };
