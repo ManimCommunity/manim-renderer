@@ -17,8 +17,8 @@
       <div class="d-flex my-2">
         <v-btn
           class="ml-2"
-          @click="()=>updateAnimationIndex(animationIndex - 1)"
-          :disabled="animationIndex === 0"
+          @click="()=>stepBackward()"
+          :disabled="animationIndex === 0 && animationOffset === 0"
           fab
           small
         >
@@ -35,8 +35,8 @@
         </v-btn>
         <v-btn
           class="ml-2"
-          @click="()=>updateAnimationIndex(animationIndex + 1)"
-          :disabled="animationIndex > animations.length - 1"
+          @click="()=>stepForward()"
+          :disabled="animations.length === 0 || animationIndex === animations.length - 1 && animationOffset === 1"
           fab
           small
         >
@@ -44,6 +44,8 @@
         </v-btn>
       </div>
       <v-btn @click="()=>controls.reset(animationIndex + 1)">reset camera</v-btn>
+      <div class="text-h4 mt-3">{{currentAnimationName}}</div>
+      <div class="text-h4 mt-3">{{animationOffset}}</div>
     </div>
   </v-app>
 </template>
@@ -114,6 +116,13 @@ export default {
     },
     rendererWidth() {
       return this.rendererHeight * this.aspectRatio;
+    },
+    currentAnimationName() {
+      if (this.animationIndex < this.animations.length) {
+        return this.animations[this.animationIndex].className;
+      } else {
+        return "";
+      }
     }
   },
   mounted() {
@@ -195,7 +204,7 @@ export default {
             this.renderer.render(this.scene, this.camera);
             requestAnimationFrame(this.animate);
           } else {
-            this.animationIndex += 1;
+            this.animationOffset = 1;
             requestAnimationFrame(this.idleRender);
           }
         }
@@ -240,6 +249,7 @@ export default {
       renderServer.addService(renderProto.RenderServer.service, {
         animationStatus: (call, callback) => {
           callback(null, {});
+          this.animationIndex += 1;
           this.startAnimation();
         },
         manimStatus: (call, callback) => {
@@ -281,8 +291,21 @@ export default {
         grpc.credentials.createInsecure()
       );
     },
-    updateAnimationIndex(index) {
-      console.log(index);
+    stepBackward() {
+      if (this.animationOffset !== 0) {
+        this.animationOffset = 0;
+      } else {
+        this.animationIndex -= 1;
+        this.animationOffset = 1;
+      }
+    },
+    stepForward() {
+      if (this.animationOffset !== 1) {
+        this.animationOffset = 1;
+      } else {
+        this.animationIndex += 1;
+        this.animationOffset = 0;
+      }
     }
   }
 };
