@@ -25,8 +25,19 @@
           <v-icon dark>mdi-skip-previous</v-icon>
         </v-btn>
         <v-btn
+          v-if="animations.length > 0 && !playing && animationIndex === animations.length - 1 && animationOffset === 1"
           class="ml-2"
           @click="()=>startAnimation(/*resetAnimations=*/true)"
+          :disabled="!pythonReady"
+          fab
+          small
+        >
+          <v-icon dark>mdi-replay</v-icon>
+        </v-btn>
+        <v-btn
+          v-else
+          class="ml-2"
+          @click="()=>startAnimation(/*resetAnimations=*/false)"
           :disabled="!pythonReady"
           fab
           small
@@ -46,6 +57,7 @@
       <v-btn @click="()=>controls.reset(animationIndex + 1)">reset camera</v-btn>
       <div class="text-h4 mt-3">{{currentAnimationName}}</div>
       <div class="text-h4 mt-3">{{animationOffset}}</div>
+      <div class="text-h4 mt-3">this.playing = {{playing}}</div>
     </div>
   </v-app>
 </template>
@@ -80,7 +92,8 @@ export default {
       sceneName: null,
       animationOffset: 0,
       animationIndex: 0,
-      animations: []
+      animations: [],
+      playing: false
     };
   },
   created() {
@@ -216,6 +229,7 @@ export default {
           this.animationIndex = 0;
           this.animations = [];
         }
+        this.playing = true;
         this.animationOffset = 0;
         this.playStartTimestamp = timeStamp;
         this.animate(timeStamp);
@@ -253,8 +267,8 @@ export default {
           this.startAnimation();
         },
         manimStatus: (call, callback) => {
-          if (call.request.stopping) {
-            this.pythonReady = false;
+          if (call.request.scene_finished) {
+            this.playing = false;
           } else {
             this.pythonReady = true;
             this.sceneName = call.request.scene_name;

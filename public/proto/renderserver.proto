@@ -20,7 +20,7 @@ message ManimStatusRequest {
     // started.
     string scene_name = 1;
 
-    // Indicates that no more frames will be served.
-    bool stopping = 2;
+    // Indicates that the current Scene is finished.
+    bool scene_finished = 2;
 }
 message ManimStatusResponse {}
