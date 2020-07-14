@@ -3,8 +3,8 @@ syntax = "proto3";
 package frameserver;
 
 service FrameServer {
-    // Updates the scene to the specified time and returns a serialization of
-    // the frame at that time.
+    // Updates the scene to the specified animation offset and returns a
+    // serialization of the frame at that time.
     rpc GetFrameAtTime (FrameRequest) returns (FrameResponse);
 
     // Used to signal to the renderer that manim is running.
@@ -14,7 +14,8 @@ service FrameServer {
 }
 
 message FrameRequest {
-    float time = 1;
+    float animation_index = 1;
+    float animation_offset = 2;
 }
 
 message Style {

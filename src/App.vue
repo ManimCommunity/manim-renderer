@@ -196,7 +196,10 @@ export default {
         }
       }
       this.frameClient.getFrameAtTime(
-        { time: this.animationOffset },
+        {
+          animation_index: this.animationIndex,
+          animation_offset: this.animationOffset
+        },
         (err, response) => {
           if (err) {
             console.error(err);
@@ -312,6 +315,7 @@ export default {
         this.animationIndex -= 1;
         this.animationOffset = 1;
       }
+      this.requestAndDisplayCurrentFrame();
     },
     stepForward() {
       if (this.animationOffset !== 1) {
@@ -320,6 +324,20 @@ export default {
         this.animationIndex += 1;
         this.animationOffset = 0;
       }
+      this.requestAndDisplayCurrentFrame();
+    },
+    requestAndDisplayCurrentFrame() {
+      this.frameClient.getFrameAtTime(
+        {
+          animation_index: this.animationIndex,
+          animation_offset: this.animationOffset
+        },
+        (err, response) => {
+          console.log("got a frame");
+          this.updateSceneWithFrameResponse(response);
+          this.renderer.render(this.scene, this.camera);
+        }
+      );
     }
   }
 };
