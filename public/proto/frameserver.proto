@@ -14,7 +14,7 @@ service FrameServer {
 }
 
 message FrameRequest {
-    float animation_index = 1;
+    int64 animation_index = 1;
     float animation_offset = 2;
 }
 
@@ -41,9 +41,10 @@ message MobjectData {
 
 message FrameResponse {
     repeated MobjectData mobjects = 1;
-    bool animation_finished = 2;
-    float duration = 3;
-    string animation_name = 4;
+    bool frame_pending = 2;
+    bool animation_finished = 3;
+    float duration = 4;
+    string animation_name = 5;
 }
 
 message RendererStatusRequest {}

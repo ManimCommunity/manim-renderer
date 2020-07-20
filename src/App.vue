@@ -55,7 +55,7 @@
         </v-btn>
       </div>
       <v-btn @click="()=>controls.reset(animationIndex + 1)">reset camera</v-btn>
-      <div class="text-h4 mt-3">{{currentAnimationName}}</div>
+      <div class="text-h4 mt-3">{{currentAnimation ? currentAnimation.className : ""}}</div>
       <div class="text-h4 mt-3">{{animationOffset}}</div>
       <div class="text-h4 mt-3">this.playing = {{playing}}</div>
     </div>
@@ -93,7 +93,8 @@ export default {
       animationOffset: 0,
       animationIndex: 0,
       animations: [],
-      playing: false
+      playing: false,
+      newAnimation: false
     };
   },
   created() {
@@ -130,12 +131,8 @@ export default {
     rendererWidth() {
       return this.rendererHeight * this.aspectRatio;
     },
-    currentAnimationName() {
-      if (this.animationIndex < this.animations.length) {
-        return this.animations[this.animationIndex].className;
-      } else {
-        return "";
-      }
+    currentAnimation() {
+      return this.animations[this.animationIndex];
     }
   },
   mounted() {
@@ -205,13 +202,21 @@ export default {
             console.error(err);
             return;
           }
-          if (response.animation_name !== "") {
+          if (
+            response.animation_name !== "" &&
+            (this.animations.length === 0 || this.newAnimation)
+          ) {
+            this.newAnimation = false;
             this.animations.push({
               runtime: response.duration,
               className: response.animation_name
             });
           }
-          if (!response.animation_finished) {
+          if (!response.frame_pending) {
+            if (response.animation_finished) {
+              this.animationIndex += 1;
+              this.playStartTimestamp = currentTimestamp;
+            }
             if (response.animation_name === "Wait" && response.duration != 0) {
               this.waitStopTimestamp =
                 currentTimestamp + response.duration * 1000;
@@ -220,7 +225,7 @@ export default {
             this.renderer.render(this.scene, this.camera);
             requestAnimationFrame(this.animate);
           } else {
-            this.animationOffset = 1;
+            this.animationOffset = this.currentAnimation.runtime;
             requestAnimationFrame(this.idleRender);
           }
         }
@@ -268,6 +273,7 @@ export default {
           callback(null, {});
           this.animationIndex += 1;
           this.startAnimation();
+          this.newAnimation = true;
         },
         manimStatus: (call, callback) => {
           if (call.request.scene_finished) {
@@ -333,7 +339,6 @@ export default {
           animation_offset: this.animationOffset
         },
         (err, response) => {
-          console.log("got a frame");
           this.updateSceneWithFrameResponse(response);
           this.renderer.render(this.scene, this.camera);
         }
