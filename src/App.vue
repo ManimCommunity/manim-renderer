@@ -22,7 +22,7 @@
           fab
           small
         >
-          <v-icon dark>mdi-skip-previous</v-icon>
+          <v-icon dark>mdi-step-backward</v-icon>
         </v-btn>
         <v-btn
           v-if="animations.length > 0 && !playing && animationIndex === animations.length - 1 && animationOffset === 1"
@@ -51,7 +51,7 @@
           fab
           small
         >
-          <v-icon dark>mdi-skip-next</v-icon>
+          <v-icon dark>mdi-step-forward</v-icon>
         </v-btn>
       </div>
       <v-btn @click="()=>controls.reset(animationIndex + 1)">reset camera</v-btn>
@@ -93,8 +93,7 @@ export default {
       animationOffset: 0,
       animationIndex: 0,
       animations: [],
-      playing: false,
-      newAnimation: false
+      playing: false
     };
   },
   created() {
@@ -202,16 +201,6 @@ export default {
             console.error(err);
             return;
           }
-          if (
-            response.animation_name !== "" &&
-            (this.animations.length === 0 || this.newAnimation)
-          ) {
-            this.newAnimation = false;
-            this.animations.push({
-              runtime: response.duration,
-              className: response.animation_name
-            });
-          }
           if (!response.frame_pending) {
             if (response.animation_finished) {
               this.animationIndex += 1;
@@ -227,6 +216,12 @@ export default {
           } else {
             this.animationOffset = this.currentAnimation.runtime;
             requestAnimationFrame(this.idleRender);
+          }
+          if (this.animationIndex === this.animations.length) {
+            this.animations.push({
+              runtime: response.duration,
+              className: response.animation_name
+            });
           }
         }
       );
@@ -273,7 +268,6 @@ export default {
           callback(null, {});
           this.animationIndex += 1;
           this.startAnimation();
-          this.newAnimation = true;
         },
         manimStatus: (call, callback) => {
           if (call.request.scene_finished) {
@@ -315,21 +309,27 @@ export default {
       );
     },
     stepBackward() {
+      if (this.animationIndex === 0) {
+        console.warn(
+          "Attempted to step backward when there is no previous animation"
+        );
+      }
       if (this.animationOffset !== 0) {
         this.animationOffset = 0;
       } else {
         this.animationIndex -= 1;
-        this.animationOffset = 1;
+        this.animationOffset = 0;
       }
       this.requestAndDisplayCurrentFrame();
     },
     stepForward() {
-      if (this.animationOffset !== 1) {
-        this.animationOffset = 1;
-      } else {
-        this.animationIndex += 1;
-        this.animationOffset = 0;
+      if (this.animationIndex === this.animations.length - 1) {
+        console.warn(
+          "Attempted to step forward when there is no next animation"
+        );
       }
+      this.animationIndex += 1;
+      this.animationOffset = 0;
       this.requestAndDisplayCurrentFrame();
     },
     requestAndDisplayCurrentFrame() {
