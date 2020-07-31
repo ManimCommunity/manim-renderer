@@ -216,6 +216,9 @@ export default {
           } else {
             this.animationOffset = this.currentAnimation.runtime;
             requestAnimationFrame(this.idleRender);
+            if (response.scene_finished) {
+              this.playing = false;
+            }
           }
           if (this.animationIndex === this.animations.length) {
             this.animations.push({
@@ -230,7 +233,6 @@ export default {
       requestAnimationFrame(timeStamp => {
         if (resetAnimations) {
           this.animationIndex = 0;
-          this.animations = [];
         }
         this.playing = true;
         this.animationOffset = 0;

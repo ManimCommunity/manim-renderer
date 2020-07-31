@@ -43,8 +43,9 @@ message FrameResponse {
     repeated MobjectData mobjects = 1;
     bool frame_pending = 2;
     bool animation_finished = 3;
-    float duration = 4;
-    string animation_name = 5;
+    bool scene_finished = 4;
+    float duration = 5;
+    string animation_name = 6;
 }
 
 message RendererStatusRequest {}
