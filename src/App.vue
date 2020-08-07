@@ -56,7 +56,8 @@
       </div>
       <v-btn @click="()=>controls.reset(animationIndex + 1)">reset camera</v-btn>
       <div class="text-h4 mt-3">{{currentAnimation ? currentAnimation.className : ""}}</div>
-      <div class="text-h4 mt-3">{{animationOffset}}</div>
+      <div class="text-h4 mt-3">animationIndex = {{animationIndex}}</div>
+      <div class="text-h4 mt-3">animationOffset = {{animationOffset}}</div>
       <div class="text-h4 mt-3">this.playing = {{playing}}</div>
     </div>
   </v-app>
@@ -326,12 +327,11 @@ export default {
     },
     stepForward() {
       if (this.animationIndex === this.animations.length - 1) {
-        console.warn(
-          "Attempted to step forward when there is no next animation"
-        );
+        this.animationOffset = this.animations[this.animationIndex].runtime;
+      } else {
+        this.animationIndex += 1;
+        this.animationOffset = 0;
       }
-      this.animationIndex += 1;
-      this.animationOffset = 0;
       this.requestAndDisplayCurrentFrame();
     },
     requestAndDisplayCurrentFrame() {
