@@ -92,9 +92,10 @@ export default {
       pythonReady: false,
       sceneName: null,
       animationOffset: 0,
-      animationIndex: 0,
+      animationIndex: -1,
       animations: [],
-      playing: false
+      playing: false,
+      startingNewAnimation: true
     };
   },
   created() {
@@ -181,8 +182,11 @@ export default {
       requestAnimationFrame(this.idleRender);
     },
     animate(currentTimestamp) {
-      this.animationOffset =
+      let requestAnimationOffset =
         (currentTimestamp - this.playStartTimestamp) / 1000;
+      if (!this.startingNewAnimation) {
+        this.animationOffset = requestAnimationOffset;
+      }
       if (this.waitStopTimestamp !== null) {
         if (currentTimestamp < this.waitStopTimestamp) {
           this.renderer.render(this.scene, this.camera);
@@ -192,43 +196,60 @@ export default {
           this.waitStopTimestamp = null;
         }
       }
-      this.frameClient.getFrameAtTime(
-        {
+      let req;
+      if (this.startingNewAnimation) {
+        req = {
+          animation_index: this.animationIndex + 1,
+          animation_offset: 0
+        };
+      } else {
+        req = {
           animation_index: this.animationIndex,
           animation_offset: this.animationOffset
-        },
-        (err, response) => {
-          if (err) {
-            console.error(err);
-            return;
+        };
+      }
+      this.frameClient.getFrameAtTime(req, (err, response) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        if (!response.frame_pending) {
+          if (response.animation_finished) {
+            this.animationIndex += 1;
+            if (this.animationIndex === this.animations.length) {
+              this.animations.push({
+                runtime: response.duration,
+                className: response.animation_name
+              });
+            }
+            this.playStartTimestamp = currentTimestamp;
           }
-          if (!response.frame_pending) {
-            if (response.animation_finished) {
-              this.animationIndex += 1;
-              this.playStartTimestamp = currentTimestamp;
-            }
-            if (response.animation_name === "Wait" && response.duration != 0) {
-              this.waitStopTimestamp =
-                currentTimestamp + response.duration * 1000;
-            }
-            this.updateSceneWithFrameResponse(response);
-            this.renderer.render(this.scene, this.camera);
-            requestAnimationFrame(this.animate);
-          } else {
-            this.animationOffset = this.currentAnimation.runtime;
-            requestAnimationFrame(this.idleRender);
-            if (response.scene_finished) {
-              this.playing = false;
-            }
+          if (response.animation_name === "Wait" && response.duration != 0) {
+            this.waitStopTimestamp =
+              currentTimestamp + response.duration * 1000;
           }
-          if (this.animationIndex === this.animations.length) {
-            this.animations.push({
-              runtime: response.duration,
-              className: response.animation_name
-            });
+          this.updateSceneWithFrameResponse(response);
+          this.renderer.render(this.scene, this.camera);
+          requestAnimationFrame(this.animate);
+        } else {
+          this.animationOffset = this.currentAnimation.runtime;
+          requestAnimationFrame(this.idleRender);
+          if (response.scene_finished) {
+            this.playing = false;
           }
         }
-      );
+        if (this.startingNewAnimation) {
+          this.animations.push({
+            runtime: response.duration,
+            className: response.animation_name
+          });
+          [this.animationOffset, this.animationIndex] = [
+            0,
+            this.animationIndex + 1
+          ];
+          this.startingNewAnimation = false;
+        }
+      });
     },
     startAnimation(resetAnimations = false) {
       requestAnimationFrame(timeStamp => {
@@ -236,7 +257,6 @@ export default {
           this.animationIndex = 0;
         }
         this.playing = true;
-        this.animationOffset = 0;
         this.playStartTimestamp = timeStamp;
         this.animate(timeStamp);
       });
@@ -269,7 +289,7 @@ export default {
       renderServer.addService(renderProto.RenderServer.service, {
         animationStatus: (call, callback) => {
           callback(null, {});
-          this.animationIndex += 1;
+          this.startingNewAnimation = true;
           this.startAnimation();
         },
         manimStatus: (call, callback) => {
@@ -280,8 +300,9 @@ export default {
             this.sceneName = call.request.scene_name;
             this.scene.children = [];
             this.animations = [];
-            this.animationIndex = 0;
+            this.animationIndex = -1;
             this.animationOffset = 0;
+            this.startingNewAnimation = true;
           }
           callback(null, {});
         }
