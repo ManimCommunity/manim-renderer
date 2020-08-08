@@ -9,6 +9,7 @@
       v-bind:key="index"
       flat
       class="flex-grow-0 flex-shrink-0 d-flex flex-column justify-center mr-1"
+      @click="$emit('jump-to-animation', index)"
       v-bind:style="{
         overflowY: 'hidden',
         width: (animation.runtime * animationWidth) + 'px',

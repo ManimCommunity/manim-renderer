@@ -12,7 +12,12 @@
       </v-toolbar>
       <div style="max-width: 853px">
         <canvas class="renderer-element" ref="renderer" />
-        <Timeline :animations="animations" :index="animationIndex" :offset="animationOffset" />
+        <Timeline
+          :animations="animations"
+          :index="animationIndex"
+          :offset="animationOffset"
+          @jump-to-animation="(index)=>jumpToAnimation(index)"
+        />
       </div>
       <div class="d-flex my-2">
         <v-btn
@@ -353,6 +358,11 @@ export default {
         this.animationIndex += 1;
         this.animationOffset = 0;
       }
+      this.requestAndDisplayCurrentFrame();
+    },
+    jumpToAnimation(animationIndex) {
+      this.animationIndex = animationIndex;
+      this.animationOffset = 0;
       this.requestAndDisplayCurrentFrame();
     },
     requestAndDisplayCurrentFrame() {
