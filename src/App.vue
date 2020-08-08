@@ -1,16 +1,16 @@
 <template>
   <v-app>
     <div class="d-flex flex-column align-start">
-      <v-toolbar :width="rendererWidth">
-        <div class="full-width d-flex justify-space-between">
-          <div>{{ this.sceneName }}</div>
-          <span>
-            <v-icon :color="pythonReady ? 'black' : 'gray'">mdi-language-python</v-icon>
-            <v-icon :color="pythonReady ? 'green' : 'gray'" class="text-caption">mdi-circle</v-icon>
-          </span>
-        </div>
-      </v-toolbar>
       <div style="max-width: 853px">
+        <v-toolbar>
+          <div class="full-width d-flex justify-space-between">
+            <div>{{ this.sceneName }}</div>
+            <span>
+              <v-icon :color="pythonReady ? 'black' : 'gray'">mdi-language-python</v-icon>
+              <v-icon :color="pythonReady ? 'green' : 'gray'" class="text-caption">mdi-circle</v-icon>
+            </span>
+          </div>
+        </v-toolbar>
         <canvas class="renderer-element" ref="renderer" />
         <Timeline
           :animations="animations"
@@ -18,48 +18,50 @@
           :offset="animationOffset"
           @jump-to-animation="(index)=>jumpToAnimation(index)"
         />
+        <div class="d-flex justify-space-between my-2">
+          <div>
+            <v-btn
+              class="ml-2"
+              @click="()=>stepBackward()"
+              :disabled="animationIndex === 0 && animationOffset === 0"
+              fab
+              small
+            >
+              <v-icon dark>mdi-step-backward</v-icon>
+            </v-btn>
+            <v-btn
+              v-if="animations.length > 0 && !playing && animationIndex === animations.length - 1 && animationOffset === 1"
+              class="ml-2"
+              @click="()=>startAnimation(/*resetAnimations=*/true)"
+              :disabled="!pythonReady"
+              fab
+              small
+            >
+              <v-icon dark>mdi-replay</v-icon>
+            </v-btn>
+            <v-btn
+              v-else
+              class="ml-2"
+              @click="()=>startAnimation(/*resetAnimations=*/false)"
+              :disabled="!pythonReady"
+              fab
+              small
+            >
+              <v-icon dark>mdi-play</v-icon>
+            </v-btn>
+            <v-btn
+              class="ml-2"
+              @click="()=>stepForward()"
+              :disabled="animations.length === 0 || animationIndex === animations.length - 1 && animationOffset === 1"
+              fab
+              small
+            >
+              <v-icon dark>mdi-step-forward</v-icon>
+            </v-btn>
+          </div>
+          <v-btn @click="()=>controls.reset(animationIndex + 1)">reset camera</v-btn>
+        </div>
       </div>
-      <div class="d-flex my-2">
-        <v-btn
-          class="ml-2"
-          @click="()=>stepBackward()"
-          :disabled="animationIndex === 0 && animationOffset === 0"
-          fab
-          small
-        >
-          <v-icon dark>mdi-step-backward</v-icon>
-        </v-btn>
-        <v-btn
-          v-if="animations.length > 0 && !playing && animationIndex === animations.length - 1 && animationOffset === 1"
-          class="ml-2"
-          @click="()=>startAnimation(/*resetAnimations=*/true)"
-          :disabled="!pythonReady"
-          fab
-          small
-        >
-          <v-icon dark>mdi-replay</v-icon>
-        </v-btn>
-        <v-btn
-          v-else
-          class="ml-2"
-          @click="()=>startAnimation(/*resetAnimations=*/false)"
-          :disabled="!pythonReady"
-          fab
-          small
-        >
-          <v-icon dark>mdi-play</v-icon>
-        </v-btn>
-        <v-btn
-          class="ml-2"
-          @click="()=>stepForward()"
-          :disabled="animations.length === 0 || animationIndex === animations.length - 1 && animationOffset === 1"
-          fab
-          small
-        >
-          <v-icon dark>mdi-step-forward</v-icon>
-        </v-btn>
-      </div>
-      <v-btn @click="()=>controls.reset(animationIndex + 1)">reset camera</v-btn>
       <div class="text-h4 mt-3">{{currentAnimation ? currentAnimation.className : ""}}</div>
       <div class="text-h4 mt-3">animationIndex = {{animationIndex}}</div>
       <div class="text-h4 mt-3">animationOffset = {{animationOffset}}</div>
