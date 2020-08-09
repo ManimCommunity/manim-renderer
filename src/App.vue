@@ -1,6 +1,6 @@
 <template>
   <v-app>
-    <div class="d-flex flex-column align-start">
+    <div class="d-flex flex-column align-start pa-2">
       <div style="max-width: 853px">
         <v-toolbar>
           <div class="full-width d-flex justify-space-between">
@@ -21,11 +21,8 @@
         <div class="d-flex justify-space-between my-2">
           <div>
             <v-btn
-              class="ml-2"
-              @click="()=>stepBackward()"
+              @click="()=>jumpBackward()"
               :disabled="animationIndex === 0 && animationOffset === 0"
-              fab
-              small
             >
               <v-icon dark>mdi-step-backward</v-icon>
             </v-btn>
@@ -34,8 +31,6 @@
               class="ml-2"
               @click="()=>startAnimation(/*resetAnimations=*/true)"
               :disabled="!pythonReady"
-              fab
-              small
             >
               <v-icon dark>mdi-replay</v-icon>
             </v-btn>
@@ -44,17 +39,13 @@
               class="ml-2"
               @click="()=>startAnimation(/*resetAnimations=*/false)"
               :disabled="!pythonReady"
-              fab
-              small
             >
               <v-icon dark>mdi-play</v-icon>
             </v-btn>
             <v-btn
               class="ml-2"
-              @click="()=>stepForward()"
+              @click="()=>jumpForward()"
               :disabled="animations.length === 0 || animationIndex === animations.length - 1 && animationOffset === 1"
-              fab
-              small
             >
               <v-icon dark>mdi-step-forward</v-icon>
             </v-btn>
@@ -62,7 +53,11 @@
           <v-btn @click="()=>controls.reset(animationIndex + 1)">reset camera</v-btn>
         </div>
       </div>
-      <div class="text-h4 mt-3">{{currentAnimation ? currentAnimation.className : ""}}</div>
+      <AnimationCard
+        :animation="currentAnimation.className"
+        @step-backward="stepBackward"
+        @step-forward="stepForward"
+      />
       <div class="text-h4 mt-3">animationIndex = {{animationIndex}}</div>
       <div class="text-h4 mt-3">animationOffset = {{animationOffset}}</div>
       <div class="text-h4 mt-3">this.playing = {{playing}}</div>
@@ -77,6 +72,7 @@ import { Mobject } from "./Mobject.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as utils from "./utils.js";
 import Timeline from "./Timeline.vue";
+import AnimationCard from "./AnimationCard.vue";
 
 const path = require("path");
 const grpc = require("@grpc/grpc-js");
@@ -93,7 +89,7 @@ const LOAD_OPTIONS = {
 
 export default {
   name: "App",
-  components: { Timeline },
+  components: { Timeline, AnimationCard },
   data() {
     return {
       pythonReady: false,
@@ -140,7 +136,14 @@ export default {
       return this.rendererHeight * this.aspectRatio;
     },
     currentAnimation() {
-      return this.animations[this.animationIndex];
+      if (
+        0 <= this.animationIndex &&
+        this.animationIndex < this.animations.length
+      ) {
+        return this.animations[this.animationIndex];
+      } else {
+        return { className: "No animation" };
+      }
     }
   },
   mounted() {
@@ -339,7 +342,7 @@ export default {
         grpc.credentials.createInsecure()
       );
     },
-    stepBackward() {
+    jumpBackward() {
       if (this.animationIndex === 0) {
         console.warn(
           "Attempted to step backward when there is no previous animation"
@@ -353,13 +356,21 @@ export default {
       }
       this.requestAndDisplayCurrentFrame();
     },
-    stepForward() {
+    jumpForward() {
       if (this.animationIndex === this.animations.length - 1) {
         this.animationOffset = this.animations[this.animationIndex].runtime;
       } else {
         this.animationIndex += 1;
         this.animationOffset = 0;
       }
+      this.requestAndDisplayCurrentFrame();
+    },
+    stepBackward() {
+      this.animationOffset = 0;
+      this.requestAndDisplayCurrentFrame();
+    },
+    stepForward() {
+      this.animationOffset = 1;
       this.requestAndDisplayCurrentFrame();
     },
     jumpToAnimation(animationIndex) {
