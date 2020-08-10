@@ -22,7 +22,6 @@
     "material-design-icons-iconfont": "^5.0.1",
     "three": "^0.117.1",
     "threejs-meshline": "^2.0.11",
-    "typeface-roboto": "^0.0.75",
     "vue": "^2.6.11",
     "vuetify": "^2.2.11"
   },

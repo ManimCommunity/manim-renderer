@@ -53,16 +53,21 @@
           <v-btn @click="()=>controls.reset(animationIndex + 1)">reset camera</v-btn>
         </div>
       </div>
-      <AnimationCard
-        :animation="currentAnimation"
-        :animation-offset="animationOffset"
-        @step-backward="stepBackward"
-        @step-forward="stepForward"
-        @play-animation="()=>startAnimation(/*resetAnimations=*/false, /*singleAnimation=*/true)"
-      />
-      <div class="text-h4 mt-3">animationIndex = {{animationIndex}}</div>
-      <div class="text-h4 mt-3">animationOffset = {{animationOffset}}</div>
-      <div class="text-h4 mt-3">this.playing = {{playing}}</div>
+      <div class="d-flex">
+        <AnimationCard
+          :animation="currentAnimation"
+          :animation-offset="animationOffset"
+          @step-backward="stepBackward"
+          @step-forward="stepForward"
+          @play-animation="()=>startAnimation(/*resetAnimations=*/false, /*singleAnimation=*/true)"
+        />
+        <DebugCard
+          class="ml-2"
+          :animation-index="animationIndex"
+          :animation-offset="animationOffset"
+          :playing="playing"
+        />
+      </div>
     </div>
   </v-app>
 </template>
@@ -75,6 +80,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as utils from "./utils.js";
 import Timeline from "./Timeline.vue";
 import AnimationCard from "./AnimationCard.vue";
+import DebugCard from "./DebugCard.vue";
 
 const path = require("path");
 const grpc = require("@grpc/grpc-js");
@@ -91,7 +97,7 @@ const LOAD_OPTIONS = {
 
 export default {
   name: "App",
-  components: { Timeline, AnimationCard },
+  components: { Timeline, AnimationCard, DebugCard },
   data() {
     return {
       pythonReady: false,
