@@ -54,9 +54,11 @@
         </div>
       </div>
       <AnimationCard
-        :animation="currentAnimation.className"
+        :animation="currentAnimation"
+        :animation-offset="animationOffset"
         @step-backward="stepBackward"
         @step-forward="stepForward"
+        @play-animation="()=>startAnimation(/*resetAnimations=*/false, /*singleAnimation=*/true)"
       />
       <div class="text-h4 mt-3">animationIndex = {{animationIndex}}</div>
       <div class="text-h4 mt-3">animationOffset = {{animationOffset}}</div>
@@ -98,7 +100,8 @@ export default {
       animationIndex: -1,
       animations: [],
       playing: false,
-      startingNewAnimation: true
+      startingNewAnimation: true,
+      playSingleAnimation: false
     };
   },
   created() {
@@ -125,7 +128,7 @@ export default {
 
     this.frameClient = null;
     this.playStartTimestamp = null;
-    this.waitStopTimestamp = null;
+    this.waitingUntilTimestamp = null;
     this.animationWidth = 45;
   },
   computed: {
@@ -197,13 +200,13 @@ export default {
       if (!this.startingNewAnimation) {
         this.animationOffset = requestAnimationOffset;
       }
-      if (this.waitStopTimestamp !== null) {
-        if (currentTimestamp < this.waitStopTimestamp) {
+      if (this.waitingUntilTimestamp !== null) {
+        if (currentTimestamp < this.waitingUntilTimestamp) {
           this.renderer.render(this.scene, this.camera);
           requestAnimationFrame(this.animate);
           return;
         } else {
-          this.waitStopTimestamp = null;
+          this.waitingUntilTimestamp = null;
         }
       }
       let req;
@@ -225,17 +228,24 @@ export default {
         }
         if (!response.frame_pending) {
           if (response.animation_finished) {
-            this.animationIndex += 1;
-            if (this.animationIndex === this.animations.length) {
-              this.animations.push({
-                runtime: response.duration,
-                className: response.animation_name
-              });
+            if (this.playSingleAnimation) {
+              this.playSingleAnimation = false;
+              this.animationOffset = this.currentAnimation.runtime;
+              requestAnimationFrame(this.idleRender);
+              return;
+            } else {
+              this.animationIndex += 1;
+              if (this.animationIndex === this.animations.length) {
+                this.animations.push({
+                  runtime: response.duration,
+                  className: response.animation_name
+                });
+              }
+              this.playStartTimestamp = currentTimestamp;
             }
-            this.playStartTimestamp = currentTimestamp;
           }
           if (response.animation_name === "Wait" && response.duration != 0) {
-            this.waitStopTimestamp =
+            this.waitingUntilTimestamp =
               currentTimestamp + response.duration * 1000;
           }
           this.updateSceneWithFrameResponse(response);
@@ -261,10 +271,13 @@ export default {
         }
       });
     },
-    startAnimation(resetAnimations = false) {
+    startAnimation(resetAnimations = false, singleAnimation = false) {
       requestAnimationFrame(timeStamp => {
         if (resetAnimations) {
           this.animationIndex = 0;
+        }
+        if (singleAnimation) {
+          this.playSingleAnimation = true;
         }
         this.playing = true;
         this.playStartTimestamp = timeStamp;
