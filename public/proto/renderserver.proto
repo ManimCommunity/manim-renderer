@@ -8,9 +8,15 @@ service RenderServer {
 
     // Used to signal when manim starts and stops.
     rpc ManimStatus (ManimStatusRequest) returns (ManimStatusResponse);
+
+    rpc UpdateScene (UpdateSceneRequest) returns (UpdateSceneResponse);
 }
 
-// Signifies that the next animation is ready to be rendered.
+message Animation {
+    string name = 1;
+    float duration = 2;
+}
+
 message AnimationStatusRequest {}
 message AnimationStatusResponse {}
 
@@ -22,5 +28,11 @@ message ManimStatusRequest {
 
     // Indicates that the current Scene is finished.
     bool scene_finished = 2;
+
+    // Indicates that the Animations have been updated and should be changed.
+    repeated Animation animations = 3;
 }
 message ManimStatusResponse {}
+
+message UpdateSceneRequest {}
+message UpdateSceneResponse {}

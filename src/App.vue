@@ -237,6 +237,8 @@ export default {
             if (this.playSingleAnimation) {
               this.playSingleAnimation = false;
               this.animationOffset = this.currentAnimation.runtime;
+              this.updateSceneWithFrameResponse(response);
+              this.renderer.render(this.scene, this.camera);
               requestAnimationFrame(this.idleRender);
               return;
             } else {
@@ -262,6 +264,9 @@ export default {
           requestAnimationFrame(this.idleRender);
           if (response.scene_finished) {
             this.playing = false;
+          }
+          if (this.playSingleAnimation) {
+            this.playSingleAnimation = false;
           }
         }
         if (this.startingNewAnimation) {
@@ -334,6 +339,11 @@ export default {
             this.startingNewAnimation = true;
           }
           callback(null, {});
+        },
+        updateScene: (call, callback) => {
+          // Pass list of animations.
+          // Request the frame.
+          callback(null, {});
         }
       });
       renderServer.bindAsync(
@@ -389,7 +399,7 @@ export default {
       this.requestAndDisplayCurrentFrame();
     },
     stepForward() {
-      this.animationOffset = 1;
+      this.animationOffset = this.currentAnimation.runtime;
       this.requestAndDisplayCurrentFrame();
     },
     jumpToAnimation(animationIndex) {
