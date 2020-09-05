@@ -4,6 +4,7 @@
     <div class="text-h5 mt-3">animationIndex = {{animationIndex}}</div>
     <div class="text-h5 mt-3">animationOffset = {{animationOffset}}</div>
     <div class="text-h5 mt-3">playing = {{playing}}</div>
+    <div class="text-h5 mt-3">startingNewAnimation = {{startingNewAnimation}}</div>
   </v-card>
 </template>
 
@@ -13,7 +14,8 @@ export default {
   props: {
     animationIndex: Number,
     animationOffset: Number,
-    playing: Boolean
+    playing: Boolean,
+    startingNewAnimation: Boolean
   }
 };
 </script>

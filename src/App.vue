@@ -66,6 +66,7 @@
           :animation-index="animationIndex"
           :animation-offset="animationOffset"
           :playing="playing"
+          :starting-new-animation="startingNewAnimation"
         />
       </div>
     </div>
@@ -330,13 +331,26 @@ export default {
           if (call.request.scene_finished) {
             this.playing = false;
           } else {
-            this.pythonReady = true;
-            this.sceneName = call.request.scene_name;
-            this.scene.children = [];
-            this.animations = [];
-            this.animationIndex = -1;
+            for (let i = 0; i < call.request.animations.length; i++) {
+              let anim = call.request.animations[i];
+              this.$set(this.animations, i, {
+                runtime: anim.duration,
+                className: anim.name
+              });
+            }
+            this.animations.splice(call.request.animations.length);
+            console.log(call.request.animations.length);
+
+            this.animationIndex = Math.min(
+              this.animationIndex,
+              this.animations.length - 1
+            );
             this.animationOffset = 0;
-            this.startingNewAnimation = true;
+
+            this.sceneName = call.request.scene_name;
+            this.pythonReady = true;
+            this.scene.children = [];
+            this.startingNewAnimation = false;
           }
           callback(null, {});
         },
