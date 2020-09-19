@@ -34,12 +34,7 @@
             >
               <v-icon dark>mdi-replay</v-icon>
             </v-btn>
-            <v-btn
-              v-else
-              class="ml-2"
-              @click="()=>startAnimation(/*resetAnimations=*/false)"
-              :disabled="!pythonReady"
-            >
+            <v-btn v-else class="ml-2" @click="()=>play()" :disabled="!pythonReady">
               <v-icon dark>mdi-play</v-icon>
             </v-btn>
             <v-btn
@@ -104,7 +99,7 @@ export default {
       pythonReady: false,
       sceneName: null,
       animationOffset: 0,
-      animationIndex: -1,
+      animationIndex: 0,
       animations: [],
       playing: false,
       startingNewAnimation: true,
@@ -188,6 +183,7 @@ export default {
     // Start render loop.
     this.idleRender();
 
+    // Request startup information from Manim.
     this.frameClient = this.getFrameClient();
     this.frameClient.rendererStatus({}, (err, response) => {
       if (!err) {
@@ -197,6 +193,35 @@ export default {
     });
   },
   methods: {
+    play() {
+      requestAnimationFrame(timeStamp => {
+        this.playing = true;
+        this.playStartTimestamp = timeStamp;
+        let renderLoop = timeStamp => {
+          this.animationOffset = (timeStamp - this.playStartTimestamp) / 1000;
+          this.frameClient.getFrameAtTime2(
+            {
+              animation_index: this.animationIndex,
+              animation_offset: this.animationOffset
+            },
+            (err, response) => {
+              if (err) {
+                console.error(err);
+                return;
+              }
+              if (response.frame_pending) {
+                // Wait for Manim to respond.
+                requestAnimationFrame(this.idleRender);
+                return;
+              }
+              this.updateSceneWithFrameResponse(response);
+              requestAnimationFrame(renderLoop);
+            }
+          );
+        };
+        requestAnimationFrame(renderLoop);
+      });
+    },
     idleRender() {
       this.renderer.render(this.scene, this.camera);
       requestAnimationFrame(this.idleRender);
@@ -322,6 +347,14 @@ export default {
         .renderserver;
       const renderServer = new grpc.Server();
       renderServer.addService(renderProto.RenderServer.service, {
+        newScene: (call, callback) => {
+          callback(null, {});
+          this.sceneName = call.request.name;
+          this.pythonReady = true;
+          this.scene.children = [];
+          this.animationOffset = 0;
+          this.animationIndex = 0;
+        },
         animationStatus: (call, callback) => {
           callback(null, {});
           this.startingNewAnimation = true;

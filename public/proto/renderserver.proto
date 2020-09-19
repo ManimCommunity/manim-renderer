@@ -10,7 +10,18 @@ service RenderServer {
     rpc ManimStatus (ManimStatusRequest) returns (ManimStatusResponse);
 
     rpc UpdateScene (UpdateSceneRequest) returns (UpdateSceneResponse);
+
+    rpc NewScene (NewSceneRequest) returns (EmptyResponse);
 }
+
+message EmptyRequest {}
+message EmptyResponse {}
+
+message NewSceneRequest {
+    string name = 1;
+}
+
+message NewSceneResponse {}
 
 message Animation {
     string name = 1;
