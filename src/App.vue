@@ -26,15 +26,7 @@
             >
               <v-icon dark>mdi-step-backward</v-icon>
             </v-btn>
-            <v-btn
-              v-if="animations.length > 0 && !playing && animationIndex === animations.length - 1 && animationOffset === 1"
-              class="ml-2"
-              @click="()=>startAnimation(/*resetAnimations=*/true)"
-              :disabled="!pythonReady"
-            >
-              <v-icon dark>mdi-replay</v-icon>
-            </v-btn>
-            <v-btn v-else class="ml-2" @click="()=>play()" :disabled="!pythonReady">
+            <v-btn class="ml-2" @click="()=>play()" :disabled="!pythonReady">
               <v-icon dark>mdi-play</v-icon>
             </v-btn>
             <v-btn
@@ -49,6 +41,7 @@
         </div>
       </div>
       <div class="d-flex">
+        <!--
         <AnimationCard
           :animation="currentAnimation"
           :animation-offset="animationOffset"
@@ -56,6 +49,7 @@
           @step-forward="stepForward"
           @play-animation="()=>startAnimation(/*resetAnimations=*/false, /*singleAnimation=*/true)"
         />
+        -->
         <DebugCard
           class="ml-2"
           :animation-index="animationIndex"
@@ -194,12 +188,12 @@ export default {
   },
   methods: {
     play() {
+      this.playing = true;
       requestAnimationFrame(timeStamp => {
-        this.playing = true;
         this.playStartTimestamp = timeStamp;
         let renderLoop = timeStamp => {
           this.animationOffset = (timeStamp - this.playStartTimestamp) / 1000;
-          this.frameClient.getFrameAtTime2(
+          this.frameClient.getFrameAtTime(
             {
               animation_index: this.animationIndex,
               animation_offset: this.animationOffset
@@ -210,9 +204,11 @@ export default {
                 return;
               }
               if (response.frame_pending) {
-                // Wait for Manim to respond.
                 requestAnimationFrame(this.idleRender);
                 return;
+              } else if (response.animation_finished) {
+                this.animationIndex += 1;
+                this.animationOffset = 0;
               }
               this.updateSceneWithFrameResponse(response);
               requestAnimationFrame(renderLoop);
@@ -225,101 +221,6 @@ export default {
     idleRender() {
       this.renderer.render(this.scene, this.camera);
       requestAnimationFrame(this.idleRender);
-    },
-    animate(currentTimestamp) {
-      let requestAnimationOffset =
-        (currentTimestamp - this.playStartTimestamp) / 1000;
-      if (!this.startingNewAnimation) {
-        this.animationOffset = requestAnimationOffset;
-      }
-      if (this.waitingUntilTimestamp !== null) {
-        if (currentTimestamp < this.waitingUntilTimestamp) {
-          this.renderer.render(this.scene, this.camera);
-          requestAnimationFrame(this.animate);
-          return;
-        } else {
-          this.waitingUntilTimestamp = null;
-        }
-      }
-      let req;
-      if (this.startingNewAnimation) {
-        req = {
-          animation_index: this.animationIndex + 1,
-          animation_offset: 0
-        };
-      } else {
-        req = {
-          animation_index: this.animationIndex,
-          animation_offset: this.animationOffset
-        };
-      }
-      this.frameClient.getFrameAtTime(req, (err, response) => {
-        if (err) {
-          console.error(err);
-          return;
-        }
-        if (!response.frame_pending) {
-          if (response.animation_finished) {
-            if (this.playSingleAnimation) {
-              this.playSingleAnimation = false;
-              this.animationOffset = this.currentAnimation.runtime;
-              this.updateSceneWithFrameResponse(response);
-              this.renderer.render(this.scene, this.camera);
-              requestAnimationFrame(this.idleRender);
-              return;
-            } else {
-              this.animationIndex += 1;
-              if (this.animationIndex === this.animations.length) {
-                this.animations.push({
-                  runtime: response.duration,
-                  className: response.animation_name
-                });
-              }
-              this.playStartTimestamp = currentTimestamp;
-            }
-          }
-          if (response.animation_name === "Wait" && response.duration != 0) {
-            this.waitingUntilTimestamp =
-              currentTimestamp + response.duration * 1000;
-          }
-          this.updateSceneWithFrameResponse(response);
-          this.renderer.render(this.scene, this.camera);
-          requestAnimationFrame(this.animate);
-        } else {
-          this.animationOffset = this.currentAnimation.runtime;
-          requestAnimationFrame(this.idleRender);
-          if (response.scene_finished) {
-            this.playing = false;
-          }
-          if (this.playSingleAnimation) {
-            this.playSingleAnimation = false;
-          }
-        }
-        if (this.startingNewAnimation) {
-          this.animations.push({
-            runtime: response.duration,
-            className: response.animation_name
-          });
-          [this.animationOffset, this.animationIndex] = [
-            0,
-            this.animationIndex + 1
-          ];
-          this.startingNewAnimation = false;
-        }
-      });
-    },
-    startAnimation(resetAnimations = false, singleAnimation = false) {
-      requestAnimationFrame(timeStamp => {
-        if (resetAnimations) {
-          this.animationIndex = 0;
-        }
-        if (singleAnimation) {
-          this.playSingleAnimation = true;
-        }
-        this.playing = true;
-        this.playStartTimestamp = timeStamp;
-        this.animate(timeStamp);
-      });
     },
     updateSceneWithFrameResponse(response) {
       this.scene.children = [];
@@ -357,8 +258,16 @@ export default {
         },
         animationStatus: (call, callback) => {
           callback(null, {});
-          this.startingNewAnimation = true;
-          this.startAnimation();
+          if (this.playing) {
+            this.animationIndex += 1;
+            this.animationOffset = 0;
+            this.play();
+          }
+        },
+        sceneFinished: (call, callback) => {
+          callback(null, {});
+          this.animationOffset = Math.round(this.animationOffset * 10) / 10;
+          this.playing = false;
         },
         manimStatus: (call, callback) => {
           if (call.request.scene_finished) {
@@ -372,7 +281,6 @@ export default {
               });
             }
             this.animations.splice(call.request.animations.length);
-            console.log(call.request.animations.length);
 
             this.animationIndex = Math.min(
               this.animationIndex,

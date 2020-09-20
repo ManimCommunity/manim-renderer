@@ -11,8 +11,6 @@ service FrameServer {
     rpc RendererStatus (RendererStatusRequest) returns (RendererStatusResponse);
 
     rpc UpdateSceneLocation (SceneLocationRequest) returns (SceneLocationResponse);
-
-    rpc GetFrameAtTime2 (FrameRequest) returns (FrameResponse);
 }
 
 message FrameRequest {
