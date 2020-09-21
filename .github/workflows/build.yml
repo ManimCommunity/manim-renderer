@@ -29,10 +29,10 @@ jobs:
     - uses: actions/upload-artifact@v2
       if: runner.os == 'windows'
       with:
-        name: dist
+        name: ${{ matrix.os }}-executables.zip
         path: dist_electron/*.exe
 
     - uses: actions/upload-artifact@v2
       with:
-        name: dist
+        name: ${{ matrix.os }}-executables.zip
         path: dist_electron/*
