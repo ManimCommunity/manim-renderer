@@ -24,9 +24,7 @@ jobs:
       run: yarn install
 
     - name: Build Executables
-      run: |
-        yarn electron:build
-        ls dist_electron
+      run: yarn electron:build
         
     - uses: actions/upload-artifact@v2
       if: runner.os == 'windows'
@@ -43,4 +41,4 @@ jobs:
       if: runner.os == 'macos'
       with:
         name: ${{ matrix.os }}-executables.zip
-        path: dist_electron/*
+        path: dist_electron/*.dmg
