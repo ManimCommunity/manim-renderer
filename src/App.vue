@@ -20,15 +20,18 @@
         />
         <div class="d-flex justify-space-between my-2">
           <div>
+            <!--
             <v-btn
               @click="()=>jumpBackward()"
               :disabled="animationIndex === 0 && animationOffset === 0"
             >
               <v-icon dark>mdi-step-backward</v-icon>
             </v-btn>
+            -->
             <v-btn class="ml-2" @click="()=>play()" :disabled="!pythonReady">
               <v-icon dark>mdi-play</v-icon>
             </v-btn>
+            <!--
             <v-btn
               class="ml-2"
               @click="()=>jumpForward()"
@@ -36,6 +39,7 @@
             >
               <v-icon dark>mdi-step-forward</v-icon>
             </v-btn>
+            -->
           </div>
           <v-btn @click="()=>controls.reset(animationIndex + 1)">reset camera</v-btn>
         </div>
