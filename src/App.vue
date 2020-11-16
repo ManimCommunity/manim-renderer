@@ -4,7 +4,7 @@
       <div>
         <v-toolbar>
           <div class="full-width d-flex justify-space-between">
-            <div>{{ this.sceneName }}</div>
+            <div class="text-h5">{{ this.sceneName }}</div>
             <span>
               <v-icon :color="pythonReady ? 'black' : 'gray'">mdi-language-python</v-icon>
               <v-icon :color="pythonReady ? 'green' : 'gray'" class="text-caption">mdi-circle</v-icon>
@@ -60,10 +60,10 @@
         -->
         <DebugCard
           class="ml-2"
+          :animation-name="animationName"
           :animation-index="animationIndex"
           :animation-offset="animationOffset"
           :playing="playing"
-          :starting-new-animation="startingNewAnimation"
         />
       </div>
     </div>
@@ -102,9 +102,9 @@ export default {
       sceneName: null,
       animationOffset: 0,
       animationIndex: 0,
+      animationName: "",
       animations: [],
       playing: false,
-      startingNewAnimation: true,
       playSingleAnimation: false,
     };
   },
@@ -209,11 +209,20 @@ export default {
                 console.error(err);
                 return;
               }
+
+              // Set the animation name.
+              this.animationName = response.animations[0];
+              if (response.animations.length > 1) {
+                this.animationName += "...";
+              }
+
+              // Update the scene.
               this.updateSceneWithFrameResponse(response);
+
               if (!response.scene_finished) {
                 requestAnimationFrame(renderLoop);
               } else {
-                console.log("done");
+                this.animationName = "";
                 this.playing = false;
                 requestAnimationFrame(this.idleRender);
               }
@@ -296,7 +305,6 @@ export default {
             this.sceneName = call.request.scene_name;
             this.pythonReady = true;
             this.scene.children = [];
-            this.startingNewAnimation = false;
           }
           callback(null, {});
         },
