@@ -210,11 +210,17 @@ export default {
                 return;
               }
 
-              // Set the animation name.
+              // Update information.
               this.animationName = response.animations[0];
               if (response.animations.length > 1) {
                 this.animationName += "...";
               }
+              this.animationIndex = response.animation_index;
+              this.animations.splice(this.animationIndex);
+              this.$set(this.animations, this.animationIndex, {
+                name: this.animationName,
+                duration: response.duration,
+              });
 
               // Update the scene.
               this.updateSceneWithFrameResponse(response);
@@ -223,6 +229,7 @@ export default {
                 requestAnimationFrame(renderLoop);
               } else {
                 this.animationName = "";
+                this.animationIndex = 0;
                 this.playing = false;
                 requestAnimationFrame(this.idleRender);
               }

@@ -12,12 +12,12 @@
       @click="$emit('jump-to-animation', index)"
       v-bind:style="{
         overflowY: 'hidden',
-        width: (animation.runtime * animationWidth) + 'px',
+        width: (animation.duration * animationWidth) + 'px',
         height: animationWidth + 'px',
       }"
     >
       <v-card-title class="d-flex justify-center headline px-2">
-        <div class="text-subtitle-1">{{ animation.className }}</div>
+        <div class="text-subtitle-1">{{ animation.name }}</div>
       </v-card-title>
     </v-card>
     <div id="position-indicator" :style="timelineOffset" />
@@ -31,7 +31,6 @@ export default {
     index: Number,
     offset: Number,
     animations: Array,
-    width: Number
   },
   created() {
     this.animationWidth = 100;
@@ -44,14 +43,14 @@ export default {
       // The default padding on the card representing the background.
       let cursorOffset = 4;
       for (let i = 0; i < this.index; i++) {
-        cursorOffset += this.animations[i].runtime * this.animationWidth + 4;
+        cursorOffset += this.animations[i].duration * this.animationWidth + 4;
       }
       if (this.index < this.animations.length) {
         cursorOffset += this.offset * this.animationWidth;
       }
       return { left: cursorOffset + "px" };
-    }
-  }
+    },
+  },
 };
 </script>
 
