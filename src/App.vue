@@ -28,7 +28,8 @@
               <v-icon dark>mdi-step-backward</v-icon>
             </v-btn>
             -->
-            <v-btn class="ml-2" @click="()=>play()" :disabled="!pythonReady">
+            <!-- <v-btn class="ml-2" @click="()=>play()" :disabled="!pythonReady"> -->
+            <v-btn class="ml-2" @click="()=>play()">
               <v-icon dark>mdi-play</v-icon>
             </v-btn>
             <!--
@@ -86,7 +87,7 @@ const LOAD_OPTIONS = {
   longs: String,
   enums: String,
   defaults: true,
-  oneofs: true
+  oneofs: true,
 };
 
 export default {
@@ -101,7 +102,7 @@ export default {
       animations: [],
       playing: false,
       startingNewAnimation: true,
-      playSingleAnimation: false
+      playSingleAnimation: false,
     };
   },
   created() {
@@ -147,7 +148,7 @@ export default {
       } else {
         return { className: "No animation" };
       }
-    }
+    },
   },
   mounted() {
     // Scene
@@ -167,7 +168,7 @@ export default {
     // Renderer
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.$refs.renderer,
-      antialias: true
+      antialias: true,
     });
     this.renderer.setSize(
       this.rendererHeight * this.aspectRatio,
@@ -193,29 +194,24 @@ export default {
   methods: {
     play() {
       this.playing = true;
-      requestAnimationFrame(timeStamp => {
+      requestAnimationFrame((timeStamp) => {
         this.playStartTimestamp = timeStamp;
-        let renderLoop = timeStamp => {
-          this.animationOffset = (timeStamp - this.playStartTimestamp) / 1000;
+        let renderLoop = (timeStamp) => {
+          this.sceneOffset = (timeStamp - this.playStartTimestamp) / 1000;
           this.frameClient.getFrameAtTime(
-            {
-              animation_index: this.animationIndex,
-              animation_offset: this.animationOffset
-            },
+            { scene_offset: this.sceneOffset },
             (err, response) => {
               if (err) {
                 console.error(err);
                 return;
               }
-              if (response.frame_pending) {
-                requestAnimationFrame(this.idleRender);
-                return;
-              } else if (response.animation_finished) {
-                this.animationIndex += 1;
-                this.animationOffset = 0;
-              }
               this.updateSceneWithFrameResponse(response);
-              requestAnimationFrame(renderLoop);
+              if (!response.scene_finished) {
+                requestAnimationFrame(renderLoop);
+              } else {
+                console.log("done");
+                requestAnimationFrame(this.idleRender);
+              }
             }
           );
         };
@@ -281,7 +277,7 @@ export default {
               let anim = call.request.animations[i];
               this.$set(this.animations, i, {
                 runtime: anim.duration,
-                className: anim.name
+                className: anim.name,
               });
             }
             this.animations.splice(call.request.animations.length);
@@ -303,7 +299,7 @@ export default {
           // Pass list of animations.
           // Request the frame.
           callback(null, {});
-        }
+        },
       });
       renderServer.bindAsync(
         "localhost:50052",
@@ -370,15 +366,15 @@ export default {
       this.frameClient.getFrameAtTime(
         {
           animation_index: this.animationIndex,
-          animation_offset: this.animationOffset
+          animation_offset: this.animationOffset,
         },
         (err, response) => {
           this.updateSceneWithFrameResponse(response);
           this.renderer.render(this.scene, this.camera);
         }
       );
-    }
-  }
+    },
+  },
 };
 </script>
 
