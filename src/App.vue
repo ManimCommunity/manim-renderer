@@ -29,8 +29,11 @@
             </v-btn>
             -->
             <!-- <v-btn class="ml-2" @click="()=>play()" :disabled="!pythonReady"> -->
-            <v-btn class="ml-2" @click="()=>play()">
+            <v-btn v-if="!playing" class="ml-2" @click="()=>play()">
               <v-icon dark>mdi-play</v-icon>
+            </v-btn>
+            <v-btn v-else class="ml-2" @click="()=>{console.log('not implemented')}">
+              <v-icon dark>mdi-pause</v-icon>
             </v-btn>
             <!--
             <v-btn
@@ -133,6 +136,7 @@ export default {
     this.animationWidth = 45;
   },
   computed: {
+    console: () => console,
     sceneWidth() {
       return this.sceneHeight * this.aspectRatio;
     },
@@ -210,6 +214,7 @@ export default {
                 requestAnimationFrame(renderLoop);
               } else {
                 console.log("done");
+                this.playing = false;
                 requestAnimationFrame(this.idleRender);
               }
             }
