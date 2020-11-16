@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <div class="d-flex flex-column align-start pa-2">
-      <div style="max-width: 853px">
+      <div>
         <v-toolbar>
           <div class="full-width d-flex justify-space-between">
             <div>{{ this.sceneName }}</div>
@@ -108,7 +108,7 @@ export default {
   created() {
     this.fps = 15;
     this.aspectRatio = 16 / 9;
-    this.rendererHeight = 480; // Set to 720 for 720p
+    this.rendererHeight = 720; // Set to 720 for 720p
     this.sceneHeight = 8;
     this.cameraNear = 1; // z = 10
     this.cameraFar = 21; // z = -10
