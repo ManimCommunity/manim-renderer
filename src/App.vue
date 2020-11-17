@@ -276,6 +276,7 @@ export default {
           this.scene.children = [];
           this.animationOffset = 0;
           this.animationIndex = 0;
+          this.animations.splice(0);
         },
         animationStatus: (call, callback) => {
           callback(null, {});
