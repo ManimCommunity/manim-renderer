@@ -211,17 +211,17 @@ export default {
               }
 
               // Update information.
+              this.animationIndex = response.animation_index;
+              this.animationOffset = response.animation_offset;
               this.animationName = response.animations[0];
               if (response.animations.length > 1) {
                 this.animationName += "...";
               }
-              this.animationIndex = response.animation_index;
               this.animations.splice(this.animationIndex);
               this.$set(this.animations, this.animationIndex, {
                 name: this.animationName,
                 duration: response.duration,
               });
-              this.animationOffset = response.animation_offset;
 
               // Update the scene.
               this.updateSceneWithFrameResponse(response);
@@ -379,19 +379,24 @@ export default {
       this.requestAndDisplayCurrentFrame();
     },
     jumpToAnimation(animationIndex) {
-      this.animationIndex = animationIndex;
-      this.animationOffset = 0;
+      this.sceneOffset = this.animations
+        .slice(0, animationIndex)
+        .reduce((total, anim) => {
+          return total + anim.duration;
+        }, 0);
       this.requestAndDisplayCurrentFrame();
     },
     requestAndDisplayCurrentFrame() {
       this.frameClient.getFrameAtTime(
-        {
-          animation_index: this.animationIndex,
-          animation_offset: this.animationOffset,
-        },
+        { scene_offset: this.sceneOffset },
         (err, response) => {
+          if (err) {
+            console.error(err);
+            return;
+          }
+          this.animationIndex = response.animation_index;
+          this.animationOffset = response.animation_offset;
           this.updateSceneWithFrameResponse(response);
-          this.renderer.render(this.scene, this.camera);
         }
       );
     },
