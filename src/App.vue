@@ -221,6 +221,7 @@ export default {
                 name: this.animationName,
                 duration: response.duration,
               });
+              this.animationOffset = response.animation_offset;
 
               // Update the scene.
               this.updateSceneWithFrameResponse(response);
@@ -229,7 +230,6 @@ export default {
                 requestAnimationFrame(renderLoop);
               } else {
                 this.animationName = "";
-                this.animationIndex = 0;
                 this.playing = false;
                 requestAnimationFrame(this.idleRender);
               }
