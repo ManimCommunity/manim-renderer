@@ -47,6 +47,18 @@
           </div>
           <v-btn @click="()=>controls.reset(animationIndex + 1)">reset camera</v-btn>
         </div>
+        <div>
+          <div class="text-h5">
+            <v-checkbox v-model="playRange" label="play range" class="large" />
+          </div>
+          <div style="width:50%" :class="{'display-none': !playRange}">
+            <v-range-slider :min="0" :max="animations.length" v-model="animationRange">
+              <template v-slot:prepend>
+                <span style="width:max-content">({{animationRange[0]}}, {{animationRange[1]}})</span>
+              </template>
+            </v-range-slider>
+          </div>
+        </div>
       </div>
       <div class="d-flex">
         <!--
@@ -105,7 +117,8 @@ export default {
       animationName: "",
       animations: [],
       playing: false,
-      playSingleAnimation: false,
+      playRange: false,
+      animationRange: [0, 0],
     };
   },
   created() {
@@ -201,9 +214,14 @@ export default {
       requestAnimationFrame((timeStamp) => {
         this.playStartTimestamp = timeStamp;
         let renderLoop = (timeStamp) => {
-          this.sceneOffset = (timeStamp - this.playStartTimestamp) / 1000;
+          this.timeOffset = (timeStamp - this.playStartTimestamp) / 1000;
           this.frameClient.getFrameAtTime(
-            { scene_offset: this.sceneOffset },
+            {
+              start_index: this.animationRange[0],
+              end_index: this.animationRange[1],
+              use_indices: this.playRange,
+              time_offset: this.timeOffset,
+            },
             (err, response) => {
               if (err) {
                 console.error(err);
@@ -379,7 +397,7 @@ export default {
       this.requestAndDisplayCurrentFrame();
     },
     jumpToAnimation(animationIndex) {
-      this.sceneOffset = this.animations
+      this.timeOffset = this.animations
         .slice(0, animationIndex)
         .reduce((total, anim) => {
           return total + anim.duration;
@@ -388,7 +406,7 @@ export default {
     },
     requestAndDisplayCurrentFrame() {
       this.frameClient.getFrameAtTime(
-        { scene_offset: this.sceneOffset },
+        { time_offset: this.timeOffset },
         (err, response) => {
           if (err) {
             console.error(err);
@@ -405,6 +423,9 @@ export default {
 </script>
 
 <style>
+.display-none {
+  display: none;
+}
 .full-width {
   width: 100%;
 }
