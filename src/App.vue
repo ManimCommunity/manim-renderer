@@ -283,6 +283,9 @@ export default {
       this.pythonReady = true;
       this.scene.children = [];
       this.mobjectDict = new Map();
+      this.animationIndex = 0;
+      this.animationOffset = 0;
+      this.animations.splice(data.scene.animations.length);
       for (let i = 0; i < data.scene.animations.length; i++) {
         this.$set(this.animations, i, {
           name: data.scene.animations[i].name,
@@ -302,6 +305,10 @@ export default {
         updateSceneData: (call, callback) => {
           callback(null, {});
           this.updateSceneData(call.request);
+        },
+        playScene: (call, callback) => {
+          callback(null, {});
+          this.play();
         },
       });
       renderServer.bindAsync(
@@ -328,37 +335,6 @@ export default {
         "localhost:50051",
         grpc.credentials.createInsecure()
       );
-    },
-    jumpBackward() {
-      if (this.animationIndex === 0) {
-        console.warn(
-          "Attempted to step backward when there is no previous animation"
-        );
-      }
-      if (this.animationOffset !== 0) {
-        this.animationOffset = 0;
-      } else {
-        this.animationIndex -= 1;
-        this.animationOffset = 0;
-      }
-      this.requestAndDisplayCurrentFrame();
-    },
-    jumpForward() {
-      if (this.animationIndex === this.animations.length - 1) {
-        this.animationOffset = this.animations[this.animationIndex].runtime;
-      } else {
-        this.animationIndex += 1;
-        this.animationOffset = 0;
-      }
-      this.requestAndDisplayCurrentFrame();
-    },
-    stepBackward() {
-      this.animationOffset = 0;
-      this.requestAndDisplayCurrentFrame();
-    },
-    stepForward() {
-      this.animationOffset = this.currentAnimation.runtime;
-      this.requestAndDisplayCurrentFrame();
     },
     jumpToAnimation(animationIndex) {
       this.timeOffset = this.animations
