@@ -201,11 +201,12 @@ export default {
 
     // Request startup information from Manim.
     this.frameClient = this.getFrameClient();
-    this.frameClient.rendererStatus({}, (err, response) => {
-      if (!err) {
-        this.pythonReady = true;
-        this.sceneName = response.scene_name;
+    this.frameClient.fetchSceneData({}, (err, response) => {
+      if (err) {
+        console.error(err);
+        return;
       }
+      this.updateSceneData(response);
     });
   },
   methods: {
@@ -235,7 +236,6 @@ export default {
               if (response.animations.length > 1) {
                 this.animationName += "...";
               }
-              this.animations.splice(this.animationIndex);
               this.$set(this.animations, this.animationIndex, {
                 name: this.animationName,
                 duration: response.duration,
@@ -278,6 +278,18 @@ export default {
         this.scene.add(mobject_mesh);
       }
     },
+    updateSceneData(data) {
+      this.sceneName = data.scene.name;
+      this.pythonReady = true;
+      this.scene.children = [];
+      this.mobjectDict = new Map();
+      for (let i = 0; i < data.scene.animations.length; i++) {
+        this.$set(this.animations, i, {
+          name: data.scene.animations[i].name,
+          duration: data.scene.animations[i].duration,
+        });
+      }
+    },
     getRenderServer() {
       const packageDefinition = protoLoader.loadSync(
         path.join(PROTO_DIR, "renderserver.proto"),
@@ -287,57 +299,9 @@ export default {
         .renderserver;
       const renderServer = new grpc.Server();
       renderServer.addService(renderProto.RenderServer.service, {
-        newScene: (call, callback) => {
+        updateSceneData: (call, callback) => {
           callback(null, {});
-          this.sceneName = call.request.name;
-          this.pythonReady = true;
-          this.scene.children = [];
-          this.animationOffset = 0;
-          this.animationIndex = 0;
-          this.animations.splice(0);
-        },
-        animationStatus: (call, callback) => {
-          callback(null, {});
-          if (this.playing) {
-            this.animationIndex += 1;
-            this.animationOffset = 0;
-            this.play();
-          }
-        },
-        sceneFinished: (call, callback) => {
-          callback(null, {});
-          this.animationOffset = Math.round(this.animationOffset * 10) / 10;
-          this.playing = false;
-        },
-        manimStatus: (call, callback) => {
-          if (call.request.scene_finished) {
-            this.playing = false;
-          } else {
-            for (let i = 0; i < call.request.animations.length; i++) {
-              let anim = call.request.animations[i];
-              this.$set(this.animations, i, {
-                runtime: anim.duration,
-                className: anim.name,
-              });
-            }
-            this.animations.splice(call.request.animations.length);
-
-            this.animationIndex = Math.min(
-              this.animationIndex,
-              this.animations.length - 1
-            );
-            this.animationOffset = 0;
-
-            this.sceneName = call.request.scene_name;
-            this.pythonReady = true;
-            this.scene.children = [];
-          }
-          callback(null, {});
-        },
-        updateScene: (call, callback) => {
-          // Pass list of animations.
-          // Request the frame.
-          callback(null, {});
+          this.updateSceneData(call.request);
         },
       });
       renderServer.bindAsync(
