@@ -292,6 +292,7 @@ export default {
           duration: data.scene.animations[i].duration,
         });
       }
+      this.play();
     },
     getRenderServer() {
       const packageDefinition = protoLoader.loadSync(
