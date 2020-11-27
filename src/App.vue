@@ -49,14 +49,37 @@
         </div>
         <div>
           <div class="text-h5">
-            <v-checkbox v-model="playRange" label="play range" class="large" />
+            <!-- <v-checkbox v-model="previewMode" label="play range" class="large" /> -->
+            <v-radio-group v-model="previewMode">
+              <v-radio
+                v-for="x in ['ALL', 'ANIMATION_RANGE', 'IMAGE']"
+                :key="x"
+                :label="`${x}`"
+                :value="x"
+              ></v-radio>
+            </v-radio-group>
           </div>
-          <div style="width:50%" :class="{'display-none': !playRange}">
-            <v-range-slider :min="0" :max="animations.length" v-model="animationRange">
+          <div style="width:50%">
+            <v-range-slider
+              :min="0"
+              :max="animations.length"
+              v-model="animationRange"
+              v-if="previewMode === 'ANIMATION_RANGE'"
+            >
               <template v-slot:prepend>
                 <span style="width:max-content">({{animationRange[0]}}, {{animationRange[1]}})</span>
               </template>
             </v-range-slider>
+            <v-slider
+              :min="0"
+              :max="animations.length"
+              v-model="imagePreviewIndex"
+              v-if="previewMode === 'IMAGE'"
+            >
+              <template v-slot:prepend>
+                <span style="width:max-content">({{imagePreviewIndex}})</span>
+              </template>
+            </v-slider>
           </div>
         </div>
       </div>
@@ -117,8 +140,9 @@ export default {
       animationName: "",
       animations: [],
       playing: false,
-      playRange: false,
+      previewMode: "ALL",
       animationRange: [0, 0],
+      imagePreviewIndex: 0,
     };
   },
   created() {
@@ -220,8 +244,9 @@ export default {
             {
               start_index: this.animationRange[0],
               end_index: this.animationRange[1],
-              use_indices: this.playRange,
+              image_index: this.imagePreviewIndex,
               time_offset: this.timeOffset,
+              preview_mode: this.previewMode,
             },
             (err, response) => {
               if (err) {
