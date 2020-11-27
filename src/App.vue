@@ -307,10 +307,6 @@ export default {
           callback(null, {});
           this.updateSceneData(call.request);
         },
-        playScene: (call, callback) => {
-          callback(null, {});
-          this.play();
-        },
       });
       renderServer.bindAsync(
         "localhost:50052",
