@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <div class="d-flex flex-column align-start pa-2">
-      <div>
+      <div :style="{width: rendererWidth + 'px'}">
         <v-toolbar>
           <div class="full-width d-flex justify-space-between">
             <div class="text-h5">{{ this.sceneName }}</div>
