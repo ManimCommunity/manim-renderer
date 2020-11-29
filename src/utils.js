@@ -16,14 +16,14 @@ export function snakeToCamelDict(dict) {
 
 export function extractMobjectProto(mobjectProto) {
   let points = [];
-  for (let point of mobjectProto.points) {
+  for (let point of mobjectProto.vectorized_mobject_data.points) {
     points.push([point.x, point.y, point.z]);
   }
   return [
     mobjectProto.id,
     points,
     snakeToCamelDict(mobjectProto.style),
-    mobjectProto.needs_redraw,
+    mobjectProto.vectorized_mobject_data.needs_redraw,
   ];
 }
 

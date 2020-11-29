@@ -289,18 +289,44 @@ export default {
     updateSceneWithFrameResponse(response) {
       this.scene.children = [];
       for (let mobject_proto of response.mobjects) {
-        let [id, points, style, needsRedraw] = utils.extractMobjectProto(
-          mobject_proto
-        );
-        let mobject_mesh;
-        if (id in this.mobjectDict) {
-          this.mobjectDict[id].update(points, style, needsRedraw);
-          mobject_mesh = this.mobjectDict[id];
-        } else {
-          mobject_mesh = new Mobject(id, points, style);
-          this.mobjectDict[id] = mobject_mesh;
+        if (mobject_proto.type === "VMOBJECT") {
+          let [id, points, style, needsRedraw] = utils.extractMobjectProto(
+            mobject_proto
+          );
+          let mobject_mesh;
+          if (id in this.mobjectDict) {
+            this.mobjectDict[id].update(points, style, needsRedraw);
+            mobject_mesh = this.mobjectDict[id];
+          } else {
+            mobject_mesh = new Mobject(id, points, style);
+            this.mobjectDict[id] = mobject_mesh;
+          }
+          this.scene.add(mobject_mesh);
+        } else if (mobject_proto.type === "IMAGE_MOBJECT") {
+          let id = mobject_proto.id;
+          let sprite = null;
+          if (id in this.mobjectDict) {
+            sprite = this.mobjectDict[id];
+          } else {
+            const map = new THREE.TextureLoader().load(
+              "./" + mobject_proto.image_mobject_data.path,
+              undefined,
+              undefined,
+              (err) => {
+                console.error("error loading image:", err);
+              }
+            );
+            const material = new THREE.SpriteMaterial({ map: map });
+            sprite = new THREE.Sprite(material);
+            this.mobjectDict[id] = sprite;
+          }
+          sprite.scale.set(
+            mobject_proto.image_mobject_data.height,
+            mobject_proto.image_mobject_data.width,
+            1
+          );
+          this.scene.add(sprite);
         }
-        this.scene.add(mobject_mesh);
       }
     },
     updateSceneData(data) {
