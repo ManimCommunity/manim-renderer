@@ -119,6 +119,7 @@ const path = require("path");
 const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
 
+const ASSETS_SERVER_URL = "http://localhost:8000/";
 const PROTO_DIR = __static + "/proto";
 const LOAD_OPTIONS = {
   keepCase: true,
@@ -309,7 +310,7 @@ export default {
             sprite = this.mobjectDict[id];
           } else {
             const map = new THREE.TextureLoader().load(
-              "./" + mobject_proto.image_mobject_data.path,
+              ASSETS_SERVER_URL + mobject_proto.image_mobject_data.path,
               undefined,
               undefined,
               (err) => {
@@ -318,6 +319,9 @@ export default {
             );
             const material = new THREE.SpriteMaterial({ map: map });
             sprite = new THREE.Sprite(material);
+            sprite.translateX(mobject_proto.image_mobject_data.center.x);
+            sprite.translateY(mobject_proto.image_mobject_data.center.y);
+            sprite.translateZ(mobject_proto.image_mobject_data.center.z);
             this.mobjectDict[id] = sprite;
           }
           sprite.scale.set(
