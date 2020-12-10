@@ -194,6 +194,7 @@ class Mobject extends THREE.Group {
       color: new THREE.Color(fillColor),
       opacity: fillOpacity,
       transparent: true,
+      side: THREE.DoubleSide,
     });
   }
 

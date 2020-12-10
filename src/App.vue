@@ -220,6 +220,7 @@ export default {
 
     // Controls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.screenSpacePanning = true;
 
     // Start render loop.
     this.idleRender();
@@ -334,6 +335,10 @@ export default {
       }
     },
     updateSceneData(data) {
+      if (data.has_exception) {
+        console.error(data.exception);
+        return;
+      }
       this.sceneName = data.scene.name;
       this.pythonReady = true;
       this.scene.children = [];
