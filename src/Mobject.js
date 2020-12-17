@@ -2,7 +2,6 @@ import * as THREE from "three";
 import { MeshLine, MeshLineMaterial } from "threejs-meshline";
 import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { MobjectFillBufferGeometry } from "./MobjectFillBufferGeometry.js";
-import { ShapeUtils } from "three/src/extras/ShapeUtils.js";
 import * as utils from "./utils";
 
 const DEFAULT_STYLE = {
@@ -63,7 +62,7 @@ class Mobject extends THREE.Group {
 
   computeShapes(points) {
     let shapes = [];
-    let holes = [];
+    let paths = [];
     let path;
     let move = true;
     for (let i = 0; i < points.length / 4; i++) {
@@ -88,49 +87,51 @@ class Mobject extends THREE.Group {
         move = !utils.allClose(lastPoint, nextPoint);
       }
       if (move) {
-        // Clockwise Paths and lines are considered holes.
-        let isClockWise = ShapeUtils.area(path.getPoints()) < 1e-6;
-        if (isClockWise) {
-          // Assume path is a hole.
-          let holeWasAdded = false;
-          for (let i = shapes.length - 1; i >= 0; i--) {
-            let shape = shapes[i];
-            let shapeContainsHole = utils.isPointInsidePolygon(
-              path.getPoint(0),
-              shape.getPoints()
-            );
-            if (shapeContainsHole) {
-              shape.holes.push(path);
-              holeWasAdded = true;
-              break;
-            }
-          }
-          if (!holeWasAdded) {
-            holes.push(path);
-          }
-        } else {
-          // Assume path is a shape.
-          let shape = new THREE.Shape();
-          for (let i = holes.length - 1; i >= 0; i--) {
-            let hole = holes[i];
-            let shapeContainsHole = utils.isPointInsidePolygon(
-              hole.getPoint(0),
-              path.getPoints()
-            );
-            if (shapeContainsHole) {
-              shape.holes.push(hole);
-              holes.splice(i, 1);
-            }
-          }
-          shape.curves.push(...path.curves);
-          shapes.push(shape);
-        }
+        paths.push(path);
       }
     }
-    // Any unused holes are treated as Shapes.
-    for (let hole of holes) {
+
+    // Determine paths and shapes.
+    let decided_path_indices = new Set();
+    for (let i = 0; i < paths.length; i++) {
+      if (decided_path_indices.has(i)) {
+        continue;
+      }
+      let test_shape = paths[i];
+      let known_shape = null;
+      for (let j = 0; j < paths.length; j++) {
+        if (i === j || decided_path_indices.has(j)) {
+          continue;
+        }
+        let test_hole = paths[j];
+        let shapeContainsHole = utils.isPointInsidePolygon(
+          test_hole.getPoint(0),
+          test_shape.getPoints()
+        );
+        if (shapeContainsHole) {
+          // Assume the outer path is a shape and the inner path is a hole.
+          if (known_shape === null) {
+            let shape = new THREE.Shape();
+            shape.curves.push(...test_shape.curves);
+            shape.holes.push(test_hole);
+            known_shape = shape;
+            decided_path_indices.add(i);
+            decided_path_indices.add(j);
+          } else {
+            known_shape.holes.push(test_hole);
+            decided_path_indices.add(j);
+          }
+        }
+      }
+      if (known_shape !== null) {
+        shapes.push(known_shape);
+      }
+    }
+    // The path isn't contained by any other path and doesn't contain any other path.
+    // Assume it's a shape.
+    for (let i = 0; i < paths.length && !decided_path_indices.has(i); i++) {
       let shape = new THREE.Shape();
-      shape.curves.push(...hole.curves);
+      shape.curves.push(...paths[i].curves);
       shapes.push(shape);
     }
     return shapes;
