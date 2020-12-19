@@ -12,6 +12,10 @@
 * Install dependencies: `yarn install`
 * Compile and run with hot reloading: `yarn electron:serve`
 
+## Using the renderer
+Once the renderer is open, you can use it by passing the `--use_js_renderer` flag to manim, e.g. `manim example_scenes/basic.py SquareToCircle --use_js_renderer`. The scene should automatically be played in the JS renderer (you may have to restart the renderer with `ctrl+r`/`cmd+r`).
+The scene will automatically be reloaded and replayed any time the file containing it is saved.
+
 ## To package
 `yarn electron:build`
 
