@@ -1,8 +1,8 @@
 <template>
   <v-app>
-    <div class="d-flex flex-column align-start pa-2">
-      <div :style="{width: rendererWidth + 'px'}">
-        <v-toolbar>
+    <div class="d-flex flex-column pa-2">
+      <div class="d-flex flex-column">
+        <v-toolbar class="rounded-t">
           <div class="full-width d-flex justify-space-between">
             <div class="text-h5">{{ this.sceneName }}</div>
             <span>
@@ -11,7 +11,7 @@
             </span>
           </div>
         </v-toolbar>
-        <canvas class="renderer-element" ref="renderer" />
+        <canvas class="full-width" ref="renderer" />
         <Timeline
           :animations="animations"
           :index="animationIndex"
