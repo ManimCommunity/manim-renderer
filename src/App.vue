@@ -6,8 +6,14 @@
           <div class="full-width d-flex justify-space-between">
             <div class="text-h5">{{ this.sceneName }}</div>
             <span>
-              <v-icon :color="pythonReady ? 'black' : 'gray'">mdi-language-python</v-icon>
-              <v-icon :color="pythonReady ? 'green' : 'gray'" class="text-caption">mdi-circle</v-icon>
+              <v-icon :color="pythonReady ? 'black' : 'gray'">
+                mdi-language-python
+              </v-icon>
+              <v-icon
+                :color="pythonReady ? 'green' : 'gray'"
+                class="text-caption"
+                >mdi-circle</v-icon
+              >
             </span>
           </div>
         </v-toolbar>
@@ -16,7 +22,7 @@
           :animations="animations"
           :index="animationIndex"
           :offset="animationOffset"
-          @jump-to-animation="(index)=>jumpToAnimation(index)"
+          @jump-to-animation="(index) => jumpToAnimation(index)"
         />
         <div class="d-flex justify-space-between my-2">
           <div>
@@ -29,10 +35,18 @@
             </v-btn>
             -->
             <!-- <v-btn class="ml-2" @click="()=>play()" :disabled="!pythonReady"> -->
-            <v-btn v-if="!playing" class="ml-2" @click="()=>play()">
+            <v-btn v-if="!playing" class="ml-2" @click="() => play()">
               <v-icon dark>mdi-play</v-icon>
             </v-btn>
-            <v-btn v-else class="ml-2" @click="()=>{console.log('not implemented')}">
+            <v-btn
+              v-else
+              class="ml-2"
+              @click="
+                () => {
+                  console.log('not implemented');
+                }
+              "
+            >
               <v-icon dark>mdi-pause</v-icon>
             </v-btn>
             <!--
@@ -45,7 +59,9 @@
             </v-btn>
             -->
           </div>
-          <v-btn @click="()=>controls.reset(animationIndex + 1)">reset camera</v-btn>
+          <v-btn @click="() => controls.reset(animationIndex + 1)"
+            >reset camera</v-btn
+          >
         </div>
         <div>
           <div class="text-h5">
@@ -59,7 +75,7 @@
               ></v-radio>
             </v-radio-group>
           </div>
-          <div style="width:50%">
+          <div style="width: 50%">
             <v-range-slider
               :min="0"
               :max="animations.length"
@@ -67,7 +83,9 @@
               v-if="previewMode === 'ANIMATION_RANGE'"
             >
               <template v-slot:prepend>
-                <span style="width:max-content">({{animationRange[0]}}, {{animationRange[1]}})</span>
+                <span style="width: max-content"
+                  >({{ animationRange[0] }}, {{ animationRange[1] }})</span
+                >
               </template>
             </v-range-slider>
             <v-slider
@@ -77,7 +95,9 @@
               v-if="previewMode === 'IMAGE'"
             >
               <template v-slot:prepend>
-                <span style="width:max-content">({{imagePreviewIndex}})</span>
+                <span style="width: max-content"
+                  >({{ imagePreviewIndex }})</span
+                >
               </template>
             </v-slider>
           </div>
@@ -136,6 +156,7 @@ export default {
     return {
       pythonReady: false,
       sceneName: null,
+      backgroundColor: "#000000",
       animationOffset: 0,
       animationIndex: 0,
       animationName: "",
@@ -305,6 +326,8 @@ export default {
           }
           this.scene.add(mobject_mesh);
         } else if (mobject_proto.type === "IMAGE_MOBJECT") {
+          // TODO: Do this with a texture loader rather than a sprite
+          // (https://threejs.org/examples/?q=texture#webgl_loader_texture_exr).
           let id = mobject_proto.id;
           let sprite = null;
           if (id in this.mobjectDict) {
@@ -320,11 +343,11 @@ export default {
             );
             const material = new THREE.SpriteMaterial({ map: map });
             sprite = new THREE.Sprite(material);
-            sprite.translateX(mobject_proto.image_mobject_data.center.x);
-            sprite.translateY(mobject_proto.image_mobject_data.center.y);
-            sprite.translateZ(mobject_proto.image_mobject_data.center.z);
             this.mobjectDict[id] = sprite;
           }
+          sprite.position.x = mobject_proto.image_mobject_data.center.x;
+          sprite.position.y = mobject_proto.image_mobject_data.center.y;
+          sprite.position.z = mobject_proto.image_mobject_data.center.z;
           sprite.scale.set(
             mobject_proto.image_mobject_data.height,
             mobject_proto.image_mobject_data.width,
@@ -340,6 +363,7 @@ export default {
         return;
       }
       this.sceneName = data.scene.name;
+      this.backgroundColor = data.scene.background_color;
       this.pythonReady = true;
       this.scene.children = [];
       this.mobjectDict = new Map();
@@ -352,6 +376,9 @@ export default {
           duration: data.scene.animations[i].duration,
         });
       }
+      this.renderer.setClearColor(
+        new THREE.Color(parseInt(data.scene.background_color.substring(1), 16))
+      );
       this.play();
     },
     getRenderServer() {
