@@ -156,7 +156,6 @@ export default {
     return {
       pythonReady: false,
       sceneName: null,
-      backgroundColor: "#000000",
       animationOffset: 0,
       animationIndex: 0,
       animationName: "",
