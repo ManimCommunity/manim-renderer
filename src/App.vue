@@ -344,12 +344,13 @@ export default {
             sprite = new THREE.Sprite(material);
             this.mobjectDict[id] = sprite;
           }
+          sprite.material.opacity = mobject_proto.style.fill_opacity;
           sprite.position.x = mobject_proto.image_mobject_data.center.x;
           sprite.position.y = mobject_proto.image_mobject_data.center.y;
           sprite.position.z = mobject_proto.image_mobject_data.center.z;
           sprite.scale.set(
-            mobject_proto.image_mobject_data.height,
             mobject_proto.image_mobject_data.width,
+            mobject_proto.image_mobject_data.height,
             1
           );
           this.scene.add(sprite);
