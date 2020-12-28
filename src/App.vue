@@ -312,50 +312,56 @@ export default {
       this.scene.children = [];
       for (let mobject_proto of response.mobjects) {
         if (mobject_proto.type === "VMOBJECT") {
-          let [id, points, style, needsRedraw] = utils.extractMobjectProto(
-            mobject_proto
-          );
-          let mobject_mesh;
-          if (id in this.mobjectDict) {
-            this.mobjectDict[id].update(points, style, needsRedraw);
-            mobject_mesh = this.mobjectDict[id];
-          } else {
-            mobject_mesh = new Mobject(id, points, style);
-            this.mobjectDict[id] = mobject_mesh;
-          }
-          this.scene.add(mobject_mesh);
+          this.scene.add(this.meshFromVMobjectProto(mobject_proto));
         } else if (mobject_proto.type === "IMAGE_MOBJECT") {
-          // TODO: Do this with a texture loader rather than a sprite
+          // TODO: Use a texture loader rather than a sprite
           // (https://threejs.org/examples/?q=texture#webgl_loader_texture_exr).
-          let id = mobject_proto.id;
-          let sprite = null;
-          if (id in this.mobjectDict) {
-            sprite = this.mobjectDict[id];
-          } else {
-            const map = new THREE.TextureLoader().load(
-              ASSETS_SERVER_URL + mobject_proto.image_mobject_data.path,
-              undefined,
-              undefined,
-              (err) => {
-                console.error("error loading image:", err);
-              }
-            );
-            const material = new THREE.SpriteMaterial({ map: map });
-            sprite = new THREE.Sprite(material);
-            this.mobjectDict[id] = sprite;
-          }
-          sprite.material.opacity = mobject_proto.style.fill_opacity;
-          sprite.position.x = mobject_proto.image_mobject_data.center.x;
-          sprite.position.y = mobject_proto.image_mobject_data.center.y;
-          sprite.position.z = mobject_proto.image_mobject_data.center.z;
-          sprite.scale.set(
-            mobject_proto.image_mobject_data.width,
-            mobject_proto.image_mobject_data.height,
-            1
-          );
-          this.scene.add(sprite);
+          this.scene.add(this.spriteFromImageMobjectProto(mobject_proto));
         }
       }
+    },
+    meshFromVMobjectProto(mobject_proto) {
+      let [id, points, style, needsRedraw] = utils.extractMobjectProto(
+        mobject_proto
+      );
+      let mobject_mesh;
+      if (id in this.mobjectDict) {
+        this.mobjectDict[id].update(points, style, needsRedraw);
+        mobject_mesh = this.mobjectDict[id];
+      } else {
+        mobject_mesh = new Mobject(id, points, style);
+        this.mobjectDict[id] = mobject_mesh;
+      }
+      return mobject_mesh;
+    },
+    spriteFromImageMobjectProto(mobject_proto) {
+      let id = mobject_proto.id;
+      let sprite = null;
+      if (id in this.mobjectDict) {
+        sprite = this.mobjectDict[id];
+      } else {
+        const map = new THREE.TextureLoader().load(
+          ASSETS_SERVER_URL + mobject_proto.image_mobject_data.path,
+          undefined,
+          undefined,
+          (err) => {
+            console.error("error loading image:", err);
+          }
+        );
+        const material = new THREE.SpriteMaterial({ map: map });
+        sprite = new THREE.Sprite(material);
+        this.mobjectDict[id] = sprite;
+      }
+      sprite.material.opacity = mobject_proto.style.fill_opacity;
+      sprite.position.x = mobject_proto.image_mobject_data.center.x;
+      sprite.position.y = mobject_proto.image_mobject_data.center.y;
+      sprite.position.z = mobject_proto.image_mobject_data.center.z;
+      sprite.scale.set(
+        mobject_proto.image_mobject_data.width,
+        mobject_proto.image_mobject_data.height,
+        1
+      );
+      return sprite;
     },
     updateSceneData(data) {
       if (data.has_exception) {
