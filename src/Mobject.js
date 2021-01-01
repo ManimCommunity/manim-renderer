@@ -34,20 +34,28 @@ class Mobject extends THREE.Group {
 
   update(points, style, needsRedraw) {
     if (needsRedraw) {
-      this.shapes = this.computeShapes(points);
-
-      // If a material is currently invisible and will continue to be invisible
-      // on the next frame, skip updating the corresponding geometry.
-      if (!(this.style.fillOpacity === 0 && style.fillOpacity === 0)) {
-        this.updateFillGeometry();
-      }
-      if (!(this.style.strokeOpacity === 0 && style.strokeOpacity === 0)) {
-        // TODO: Update this rather than destroying and recreating it.
-        this.strokeMesh.geometry.dispose();
-        this.strokeMesh.geometry = this.computeStrokeGeometry();
-      }
+      this.updateGeometry(points, style);
     }
 
+    this.updateMaterial(style);
+  }
+
+  updateGeometry(points, style) {
+    this.shapes = this.computeShapes(points);
+
+    // If a material is currently invisible and will continue to be invisible
+    // on the next frame, skip updating the corresponding geometry.
+    if (!(this.style.fillOpacity === 0 && style.fillOpacity === 0)) {
+      this.fillMesh.geometry.update(this.shapes);
+    }
+    if (!(this.style.strokeOpacity === 0 && style.strokeOpacity === 0)) {
+      // TODO: Update this rather than destroying and recreating it.
+      this.strokeMesh.geometry.dispose();
+      this.strokeMesh.geometry = this.computeStrokeGeometry();
+    }
+  }
+
+  updateMaterial(style) {
     this.style = Object.assign(this.style, style);
     this.updateFillMaterial();
     this.updateStrokeMaterial();
@@ -183,10 +191,6 @@ class Mobject extends THREE.Group {
 
   computeFillGeometry() {
     return new MobjectFillBufferGeometry(this.shapes, 11);
-  }
-
-  updateFillGeometry() {
-    this.fillMesh.geometry.update(this.shapes);
   }
 
   computeFillMaterial() {

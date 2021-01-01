@@ -134,6 +134,7 @@ import * as utils from "./utils.js";
 import Timeline from "./Timeline.vue";
 import AnimationCard from "./AnimationCard.vue";
 import DebugCard from "./DebugCard.vue";
+import { rootCertificates } from "tls";
 
 const path = require("path");
 const grpc = require("@grpc/grpc-js");
@@ -279,7 +280,7 @@ export default {
               // Update information.
               this.animationIndex = response.animation_index;
               this.animationOffset = response.animation_offset;
-              this.animationName = response.animations[0];
+              this.animationName = response.animations[0].name;
               if (response.animations.length > 1) {
                 this.animationName += "...";
               }
@@ -312,7 +313,61 @@ export default {
       this.scene.children = [];
       for (let mobject_proto of response.mobjects) {
         if (mobject_proto.type === "VMOBJECT") {
-          this.scene.add(this.meshFromVMobjectProto(mobject_proto));
+          let [id, points, style, needsRedraw] = utils.extractMobjectProto(
+            mobject_proto
+          );
+          let mobject_mesh;
+          if (id in this.mobjectDict) {
+            mobject_mesh = this.mobjectDict[id];
+
+            let updated_with_tween = false;
+            for (let animation of response.animations) {
+              if (animation.mobject_ids.includes(id)) {
+                for (let single_tween_data of animation.tween_data) {
+                  if (single_tween_data.attribute === "position") {
+                    // Get mobject center.
+                    let t = utils[animation.easing_function](
+                      response.animation_offset / animation.duration
+                    );
+                    let start_position = new THREE.Vector3(
+                      ...single_tween_data.start_data
+                    );
+                    let end_position = new THREE.Vector3(
+                      ...single_tween_data.end_data
+                    );
+                    let root_mobject_offset = new THREE.Vector3(
+                      ...mobject_proto.root_mobject_offset
+                    );
+                    let position = new THREE.Vector3()
+                      .addVectors(
+                        start_position.multiplyScalar(1 - t),
+                        end_position.multiplyScalar(t)
+                      )
+                      .add(root_mobject_offset);
+
+                    // Get mesh center.
+                    let boundingBoxCenter = new THREE.Vector3();
+                    mobject_mesh.strokeMesh.geometry.computeBoundingBox();
+                    mobject_mesh.strokeMesh.geometry.boundingBox.getCenter(
+                      boundingBoxCenter
+                    );
+                    mobject_mesh.localToWorld(boundingBoxCenter);
+
+                    // Update mesh center to mobject center.
+                    mobject_mesh.position.add(position).sub(boundingBoxCenter);
+                  }
+                }
+                updated_with_tween = true;
+              }
+            }
+            if (!updated_with_tween) {
+              mobject_mesh.update(points, style, needsRedraw);
+            }
+          } else {
+            mobject_mesh = new Mobject(id, points, style);
+            this.mobjectDict[id] = mobject_mesh;
+          }
+          this.scene.add(mobject_mesh);
         } else if (mobject_proto.type === "IMAGE_MOBJECT") {
           // TODO: Use a texture loader rather than a sprite
           // (https://threejs.org/examples/?q=texture#webgl_loader_texture_exr).
@@ -320,20 +375,7 @@ export default {
         }
       }
     },
-    meshFromVMobjectProto(mobject_proto) {
-      let [id, points, style, needsRedraw] = utils.extractMobjectProto(
-        mobject_proto
-      );
-      let mobject_mesh;
-      if (id in this.mobjectDict) {
-        this.mobjectDict[id].update(points, style, needsRedraw);
-        mobject_mesh = this.mobjectDict[id];
-      } else {
-        mobject_mesh = new Mobject(id, points, style);
-        this.mobjectDict[id] = mobject_mesh;
-      }
-      return mobject_mesh;
-    },
+    meshFromVMobjectProto(mobject_proto) {},
     spriteFromImageMobjectProto(mobject_proto) {
       let id = mobject_proto.id;
       let sprite = null;

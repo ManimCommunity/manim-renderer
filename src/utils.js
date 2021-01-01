@@ -91,3 +91,24 @@ export function isPointInsidePolygon(inPt, inPolygon) {
 
   return inside;
 }
+
+export function clip(val, min, max) {
+  return Math.max(min, Math.min(max, val));
+}
+
+export function sigmoid(x) {
+  return 1.0 / (1 + Math.exp(-x));
+}
+
+export function smooth(t, inflection = 10) {
+  let error = sigmoid(-inflection / 2);
+  return clip(
+    (sigmoid(inflection * (t - 0.5)) - error) / (1 - 2 * error),
+    0,
+    1
+  );
+}
+
+export function interpolate(a, b, t) {
+  return a + t * b;
+}
