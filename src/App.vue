@@ -345,77 +345,99 @@ export default {
     },
     updateSceneWithFrameResponse(response) {
       this.scene.children = [];
-      for (let mobject_proto of response.mobjects) {
-        if (mobject_proto.type === "VMOBJECT") {
-          let [id, points, style, needsRedraw] = utils.extractMobjectProto(
-            mobject_proto
+      for (let mobjectProto of response.mobjects) {
+        let mobjectId = mobjectProto.id;
+        if (mobjectId in this.mobjectDict) {
+          this.updateObjectFromMobjectProto(
+            this.mobjectDict[mobjectId],
+            mobjectProto,
+            response
           );
-          let mobject_mesh;
-          if (id in this.mobjectDict) {
-            mobject_mesh = this.mobjectDict[id];
-
-            let updated_with_tween = false;
-            for (let animation of response.animations) {
-              if (
-                animation.tween_data.length > 0 &&
-                animation.mobject_ids.includes(id)
-              ) {
-                for (let single_tween_data of animation.tween_data) {
-                  this.updateMeshWithTweenData(
-                    mobject_mesh,
-                    mobject_proto.root_mobject_offset,
-                    animation,
-                    single_tween_data,
-                    response.animation_offset
-                  );
-                }
-                updated_with_tween = true;
-              }
-            }
-            if (!updated_with_tween) {
-              mobject_mesh.update(points, style, needsRedraw);
-            }
-          } else {
-            mobject_mesh = new Mobject(id, points, style);
-            this.mobjectDict[id] = mobject_mesh;
-          }
-          this.scene.add(mobject_mesh);
-        } else if (mobject_proto.type === "IMAGE_MOBJECT") {
-          // TODO: Use a texture loader rather than a sprite
-          // (https://threejs.org/examples/?q=texture#webgl_loader_texture_exr).
-          this.scene.add(this.spriteFromImageMobjectProto(mobject_proto));
+          this.scene.add(this.mobjectDict[mobjectId]);
+        } else {
+          let meshOrSprite = this.createObjectFromMobjectProto(mobjectProto);
+          this.mobjectDict[mobjectId] = meshOrSprite;
+          this.scene.add(meshOrSprite);
         }
       }
     },
-    meshFromVMobjectProto(mobject_proto) {},
-    spriteFromImageMobjectProto(mobject_proto) {
-      let id = mobject_proto.id;
-      let sprite = null;
-      if (id in this.mobjectDict) {
-        sprite = this.mobjectDict[id];
+    createObjectFromMobjectProto(mobjectProto) {
+      if (mobjectProto.type === "VMOBJECT") {
+        let [id, points, style] = utils.extractMobjectProto(mobjectProto);
+        return new Mobject(id, points, style);
+      } else if (mobjectProto.type === "IMAGE_MOBJECT") {
+        return this.spriteFromImageMobjectProto(mobjectProto);
       } else {
-        const map = new THREE.TextureLoader().load(
-          ASSETS_SERVER_URL + mobject_proto.image_mobject_data.path,
-          undefined,
-          undefined,
-          (err) => {
-            console.error("error loading image:", err);
-          }
+        console.error(
+          `Can't create object of unknown type {mobjectProto.type}.`
         );
-        const material = new THREE.SpriteMaterial({ map: map });
-        sprite = new THREE.Sprite(material);
-        this.mobjectDict[id] = sprite;
       }
-      sprite.material.opacity = mobject_proto.style.fill_opacity;
-      sprite.position.x = mobject_proto.image_mobject_data.center.x;
-      sprite.position.y = mobject_proto.image_mobject_data.center.y;
-      sprite.position.z = mobject_proto.image_mobject_data.center.z;
+    },
+    updateObjectFromMobjectProto(obj, mobjectProto, frameResponse) {
+      if (mobjectProto.type === "VMOBJECT") {
+        let mesh = obj;
+        let id = mobjectProto.id;
+
+        let updatedWithTween = false;
+        for (let animation of frameResponse.animations) {
+          if (
+            animation.tween_data.length > 0 &&
+            animation.mobject_ids.includes(id)
+          ) {
+            for (let singleTweenData of animation.tween_data) {
+              this.updateMeshWithTweenData(
+                mesh,
+                mobjectProto.root_mobject_offset,
+                animation,
+                singleTweenData,
+                frameResponse.animation_offset
+              );
+            }
+            updatedWithTween = true;
+          }
+        }
+
+        if (!updatedWithTween) {
+          let [id, points, style, needsRedraw] = utils.extractMobjectProto(
+            mobjectProto
+          );
+          mesh.update(points, style, needsRedraw);
+        }
+      } else if (mobjectProto.type === "IMAGE_MOBJECT") {
+        let sprite = obj;
+        this.updateSpriteProperties(sprite, mobjectProto);
+      } else {
+        console.error(
+          `Can't update object of unknown type {mobjectProto.type}.`
+        );
+      }
+    },
+    spriteFromImageMobjectProto(mobjectProto) {
+      // TODO: Use a texture loader rather than a sprite
+      // (https://threejs.org/examples/?q=texture#webgl_loader_texture_exr).
+      const map = new THREE.TextureLoader().load(
+        ASSETS_SERVER_URL + mobjectProto.image_mobject_data.path,
+        undefined,
+        undefined,
+        (err) => {
+          console.error("error loading image:", err);
+        }
+      );
+      const material = new THREE.SpriteMaterial({ map: map });
+      let sprite = new THREE.Sprite(material);
+      this.updateSpriteProperties(sprite, mobjectProto);
+      return sprite;
+    },
+    updateSpriteProperties(sprite, mobjectProto) {
+      sprite.material.opacity = mobjectProto.style.fill_opacity;
+      sprite.position.x = mobjectProto.image_mobject_data.center.x;
+      sprite.position.y = mobjectProto.image_mobject_data.center.y;
+      sprite.position.z = mobjectProto.image_mobject_data.center.z;
       sprite.scale.set(
-        mobject_proto.image_mobject_data.width,
-        mobject_proto.image_mobject_data.height,
+        mobjectProto.image_mobject_data.width,
+        mobjectProto.image_mobject_data.height,
         1
       );
-      return sprite;
     },
     updateSceneData(data) {
       if (data.has_exception) {
