@@ -322,7 +322,10 @@ export default {
 
             let updated_with_tween = false;
             for (let animation of response.animations) {
-              if (animation.mobject_ids.includes(id)) {
+              if (
+                animation.tween_data.length > 0 &&
+                animation.mobject_ids.includes(id)
+              ) {
                 for (let single_tween_data of animation.tween_data) {
                   if (single_tween_data.attribute === "position") {
                     // Get mobject center.
