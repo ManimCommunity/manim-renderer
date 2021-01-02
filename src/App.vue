@@ -309,6 +309,40 @@ export default {
       this.renderer.render(this.scene, this.camera);
       requestAnimationFrame(this.idleRender);
     },
+    updateMeshWithTweenData(
+      mesh,
+      rootMobjectOffset,
+      animation,
+      tweenData,
+      timeOffset
+    ) {
+      if (tweenData.attribute === "position") {
+        // Get eased offset.
+        let t = utils[animation.easing_function](
+          timeOffset / animation.duration
+        );
+
+        // Get mobject center at the given offset.
+        let startPosition = new THREE.Vector3(...tweenData.start_data);
+        let endPosition = new THREE.Vector3(...tweenData.end_data);
+        let meshOffset = new THREE.Vector3(...rootMobjectOffset);
+        let position = new THREE.Vector3()
+          .addVectors(
+            startPosition.multiplyScalar(1 - t),
+            endPosition.multiplyScalar(t)
+          )
+          .add(meshOffset);
+
+        // Get mesh center.
+        let boundingBoxCenter = new THREE.Vector3();
+        mesh.strokeMesh.geometry.computeBoundingBox();
+        mesh.strokeMesh.geometry.boundingBox.getCenter(boundingBoxCenter);
+        mesh.localToWorld(boundingBoxCenter);
+
+        // Update mesh center to mobject center.
+        mesh.position.add(position).sub(boundingBoxCenter);
+      }
+    },
     updateSceneWithFrameResponse(response) {
       this.scene.children = [];
       for (let mobject_proto of response.mobjects) {
@@ -327,38 +361,13 @@ export default {
                 animation.mobject_ids.includes(id)
               ) {
                 for (let single_tween_data of animation.tween_data) {
-                  if (single_tween_data.attribute === "position") {
-                    // Get mobject center.
-                    let t = utils[animation.easing_function](
-                      response.animation_offset / animation.duration
-                    );
-                    let start_position = new THREE.Vector3(
-                      ...single_tween_data.start_data
-                    );
-                    let end_position = new THREE.Vector3(
-                      ...single_tween_data.end_data
-                    );
-                    let root_mobject_offset = new THREE.Vector3(
-                      ...mobject_proto.root_mobject_offset
-                    );
-                    let position = new THREE.Vector3()
-                      .addVectors(
-                        start_position.multiplyScalar(1 - t),
-                        end_position.multiplyScalar(t)
-                      )
-                      .add(root_mobject_offset);
-
-                    // Get mesh center.
-                    let boundingBoxCenter = new THREE.Vector3();
-                    mobject_mesh.strokeMesh.geometry.computeBoundingBox();
-                    mobject_mesh.strokeMesh.geometry.boundingBox.getCenter(
-                      boundingBoxCenter
-                    );
-                    mobject_mesh.localToWorld(boundingBoxCenter);
-
-                    // Update mesh center to mobject center.
-                    mobject_mesh.position.add(position).sub(boundingBoxCenter);
-                  }
+                  this.updateMeshWithTweenData(
+                    mobject_mesh,
+                    mobject_proto.root_mobject_offset,
+                    animation,
+                    single_tween_data,
+                    response.animation_offset
+                  );
                 }
                 updated_with_tween = true;
               }
