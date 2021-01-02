@@ -193,6 +193,11 @@ export default {
     this.playStartTimestamp = null;
     this.waitingUntilTimestamp = null;
     this.animationWidth = 45;
+
+    this.lastAnimationOffset = null;
+    this.tweenDict = new Map();
+    this.tweenMobjectIds = [];
+    this.allAnimationsTweened = false;
   },
   computed: {
     console: () => console,
@@ -259,6 +264,7 @@ export default {
   methods: {
     play() {
       this.playing = true;
+      let firstFrame = true;
       requestAnimationFrame((timeStamp) => {
         this.playStartTimestamp = timeStamp;
         let renderLoop = (timeStamp) => {
@@ -278,6 +284,32 @@ export default {
               }
 
               // Update information.
+              if (
+                firstFrame ||
+                response.animation_index > this.animationIndex
+              ) {
+                // Set new tween data.
+                firstFrame = false;
+                this.lastAnimationOffset = null;
+                this.allAnimationsTweened = true;
+                for (let animation of response.animations) {
+                  if (animation.tween_data.length > 0) {
+                    for (let id of animation.mobject_ids) {
+                      this.tweenDict[id] = animation;
+                      this.tweenMobjectIds.push(id);
+                    }
+                  } else {
+                    this.allAnimationsTweened = false;
+                  }
+                }
+                if (this.allAnimationsTweened) {
+                  // Each animated mobject in the scene has tween data.
+                  console.warn(
+                    "Tweening mobjects without RPCs to manim. This isn't correct for",
+                    "some scenes with updaters."
+                  );
+                }
+              }
               this.animationIndex = response.animation_index;
               this.animationOffset = response.animation_offset;
               this.animationName = response.animations[0].name;
@@ -297,10 +329,15 @@ export default {
               } else {
                 this.animationName = "";
                 this.playing = false;
+                this.lastAnimationOffset = null;
+                this.tweenDict = new Map();
+                this.tweenMobjectIds = [];
+                this.allAnimationsTweened = false;
                 requestAnimationFrame(this.idleRender);
               }
             }
           );
+          this.lastAnimationOffset = this.animationOffset;
         };
         requestAnimationFrame(renderLoop);
       });
@@ -309,38 +346,33 @@ export default {
       this.renderer.render(this.scene, this.camera);
       requestAnimationFrame(this.idleRender);
     },
-    updateMeshWithTweenData(
-      mesh,
-      rootMobjectOffset,
-      animation,
-      tweenData,
-      timeOffset
-    ) {
+    updateMeshWithTweenData(mesh, animation, tweenData) {
       if (tweenData.attribute === "position") {
         // Get eased offset.
-        let t = utils[animation.easing_function](
-          timeOffset / animation.duration
+        let easingFunction = utils[animation.easing_function];
+        let currentT = easingFunction(
+          this.animationOffset / animation.duration
+        );
+        let lastT = easingFunction(
+          this.lastAnimationOffset / animation.duration
         );
 
-        // Get mobject center at the given offset.
+        // Compute the offset of the root mobject.
         let startPosition = new THREE.Vector3(...tweenData.start_data);
         let endPosition = new THREE.Vector3(...tweenData.end_data);
-        let meshOffset = new THREE.Vector3(...rootMobjectOffset);
-        let position = new THREE.Vector3()
-          .addVectors(
-            startPosition.multiplyScalar(1 - t),
-            endPosition.multiplyScalar(t)
-          )
-          .add(meshOffset);
 
-        // Get mesh center.
-        let boundingBoxCenter = new THREE.Vector3();
-        mesh.strokeMesh.geometry.computeBoundingBox();
-        mesh.strokeMesh.geometry.boundingBox.getCenter(boundingBoxCenter);
-        mesh.localToWorld(boundingBoxCenter);
+        let currentPosition = new THREE.Vector3().addVectors(
+          startPosition.clone().multiplyScalar(1 - currentT),
+          endPosition.clone().multiplyScalar(currentT)
+        );
+        let lastPosition = new THREE.Vector3().addVectors(
+          startPosition.multiplyScalar(1 - lastT),
+          endPosition.multiplyScalar(lastT)
+        );
+        let offset = currentPosition.sub(lastPosition);
 
-        // Update mesh center to mobject center.
-        mesh.position.add(position).sub(boundingBoxCenter);
+        // Offset the position of the mesh.
+        mesh.position.add(offset);
       }
     },
     updateSceneWithFrameResponse(response) {
@@ -385,13 +417,7 @@ export default {
             animation.mobject_ids.includes(id)
           ) {
             for (let singleTweenData of animation.tween_data) {
-              this.updateMeshWithTweenData(
-                mesh,
-                mobjectProto.root_mobject_offset,
-                animation,
-                singleTweenData,
-                frameResponse.animation_offset
-              );
+              this.updateMeshWithTweenData(mesh, animation, singleTweenData);
             }
             updatedWithTween = true;
           }
