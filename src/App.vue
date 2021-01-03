@@ -263,8 +263,7 @@ export default {
   methods: {
     play() {
       this.playing = true;
-      let firstFrame = true;
-      let animationStartTime;
+      let animationStartTime = null;
       requestAnimationFrame((timeStamp) => {
         this.playStartTimestamp = timeStamp;
         let renderLoop = (timeStamp) => {
@@ -285,8 +284,6 @@ export default {
                 }
 
                 // Update information.
-                let firstFrameWithScene =
-                  firstFrame || response.animation_index > this.animationIndex;
                 this.animationIndex = response.animation_index;
                 this.animationOffset = response.animation_offset;
                 this.animationName = response.animations[0].name;
@@ -301,10 +298,11 @@ export default {
                 // Update the scene.
                 this.updateSceneWithFrameResponse(response);
 
-                // Set tween data if present.
-                if (firstFrameWithScene) {
-                  // Set new tween data.
-                  firstFrame = false;
+                // If starting a new scene, add tween data if present.
+                if (
+                  animationStartTime === null ||
+                  response.animation_index > this.animationIndex
+                ) {
                   this.allAnimationsTweened = true;
                   animationStartTime = timeStamp;
                   for (let animation of response.animations) {
