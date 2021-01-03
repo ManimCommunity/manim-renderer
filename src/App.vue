@@ -345,7 +345,7 @@ export default {
     tweenAnimatedMobjects(timeStamp) {
       this.animationOffset = (timeStamp - this.animationStartTime) / 1000;
       if (this.animationOffset > this.currentAnimation.duration) {
-        this.resetAnimationData();
+        this.allAnimationsTweened = false;
         requestAnimationFrame(this.renderLoop);
         return;
       }
@@ -365,8 +365,15 @@ export default {
       this.tweenDict = new Map();
       this.tweenMobjectIds = [];
       this.allAnimationsTweened = false;
-      for (let id of this.mobjectDict) {
-        this.mobjectDict[id].dispose();
+      for (let id of Object.keys(this.mobjectDict)) {
+        let mesh = this.mobjectDict[id];
+        if (mesh instanceof Mobject) {
+          mesh.dispose();
+        } else {
+          mesh.geometry.dispose();
+          mesh.material.dispose();
+          mesh.material.texture.dispose();
+        }
       }
       this.mobjectDict = new Map();
     },
@@ -401,20 +408,20 @@ export default {
       for (let mobjectProto of response.mobjects) {
         let mobjectId = mobjectProto.id;
         if (mobjectId in this.mobjectDict) {
-          this.updateObjectFromMobjectProto(
+          this.updateMeshFromMobjectProto(
             this.mobjectDict[mobjectId],
             mobjectProto,
             response
           );
           this.scene.add(this.mobjectDict[mobjectId]);
         } else {
-          let meshOrSprite = this.createObjectFromMobjectProto(mobjectProto);
-          this.mobjectDict[mobjectId] = meshOrSprite;
-          this.scene.add(meshOrSprite);
+          let mesh = this.createMeshFromMobjectProto(mobjectProto);
+          this.mobjectDict[mobjectId] = mesh;
+          this.scene.add(mesh);
         }
       }
     },
-    createObjectFromMobjectProto(mobjectProto) {
+    createMeshFromMobjectProto(mobjectProto) {
       if (mobjectProto.type === "VMOBJECT") {
         let [
           id,
@@ -425,16 +432,15 @@ export default {
         ] = utils.extractMobjectProto(mobjectProto);
         return new Mobject(id, points, style, new THREE.Vector3(...rootOffset));
       } else if (mobjectProto.type === "IMAGE_MOBJECT") {
-        return this.spriteFromImageMobjectProto(mobjectProto);
+        return this.meshFromImageMobjectProto(mobjectProto);
       } else {
         console.error(
           `Can't create object of unknown type {mobjectProto.type}.`
         );
       }
     },
-    updateObjectFromMobjectProto(obj, mobjectProto, frameResponse) {
+    updateMeshFromMobjectProto(mesh, mobjectProto, frameResponse) {
       if (mobjectProto.type === "VMOBJECT") {
-        let mesh = obj;
         let id = mobjectProto.id;
 
         let updatedWithTween = false;
@@ -457,36 +463,34 @@ export default {
           mesh.update(points, style, needsRedraw);
         }
       } else if (mobjectProto.type === "IMAGE_MOBJECT") {
-        let sprite = obj;
-        this.updateSpriteProperties(sprite, mobjectProto);
+        this.updateImageProperties(mesh, mobjectProto);
       } else {
         console.error(
-          `Can't update object of unknown type {mobjectProto.type}.`
+          `Can't update mobject of unknown type {mobjectProto.type}.`
         );
       }
     },
-    spriteFromImageMobjectProto(mobjectProto) {
-      // TODO: Use a texture loader rather than a sprite
-      // (https://threejs.org/examples/?q=texture#webgl_loader_texture_exr).
-      const map = new THREE.TextureLoader().load(
-        ASSETS_SERVER_URL + mobjectProto.image_mobject_data.path,
-        undefined,
-        undefined,
-        (err) => {
-          console.error("error loading image:", err);
-        }
+    meshFromImageMobjectProto(mobjectProto) {
+      const texture = new THREE.TextureLoader().load(
+        ASSETS_SERVER_URL + mobjectProto.image_mobject_data.path
       );
-      const material = new THREE.SpriteMaterial({ map: map });
-      let sprite = new THREE.Sprite(material);
-      this.updateSpriteProperties(sprite, mobjectProto);
-      return sprite;
+      const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        side: THREE.DoubleSide,
+        transparent: true,
+      });
+      material.texture = texture;
+      const geometry = new THREE.PlaneBufferGeometry(1, 1);
+      let mesh = new THREE.Mesh(geometry, material);
+      this.updateImageProperties(mesh, mobjectProto);
+      return mesh;
     },
-    updateSpriteProperties(sprite, mobjectProto) {
-      sprite.material.opacity = mobjectProto.style.fill_opacity;
-      sprite.position.x = mobjectProto.image_mobject_data.center.x;
-      sprite.position.y = mobjectProto.image_mobject_data.center.y;
-      sprite.position.z = mobjectProto.image_mobject_data.center.z;
-      sprite.scale.set(
+    updateImageProperties(mesh, mobjectProto) {
+      mesh.material.opacity = mobjectProto.style.fill_opacity;
+      mesh.position.x = mobjectProto.image_mobject_data.center.x;
+      mesh.position.y = mobjectProto.image_mobject_data.center.y;
+      mesh.position.z = mobjectProto.image_mobject_data.center.z;
+      mesh.scale.set(
         mobjectProto.image_mobject_data.width,
         mobjectProto.image_mobject_data.height,
         1
