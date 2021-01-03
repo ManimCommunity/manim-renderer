@@ -284,6 +284,9 @@ export default {
                 }
 
                 // Update information.
+                let startingNewAnimation =
+                  animationStartTime === null ||
+                  response.animation_index > this.animationIndex;
                 this.animationIndex = response.animation_index;
                 this.animationOffset = response.animation_offset;
                 this.animationName = response.animations[0].name;
@@ -299,10 +302,7 @@ export default {
                 this.updateSceneWithFrameResponse(response);
 
                 // If starting a new scene, add tween data if present.
-                if (
-                  animationStartTime === null ||
-                  response.animation_index > this.animationIndex
-                ) {
+                if (startingNewAnimation) {
                   this.allAnimationsTweened = true;
                   animationStartTime = timeStamp;
                   for (let animation of response.animations) {
