@@ -263,98 +263,101 @@ export default {
   methods: {
     play() {
       this.playing = true;
-      let animationStartTime = null;
+      this.animationStartTime = null;
       requestAnimationFrame((timeStamp) => {
         this.playStartTimestamp = timeStamp;
-        let renderLoop = (timeStamp) => {
-          this.timeOffset = (timeStamp - this.playStartTimestamp) / 1000;
-          if (!this.allAnimationsTweened) {
-            this.frameClient.getFrameAtTime(
-              {
-                start_index: this.animationRange[0],
-                end_index: this.animationRange[1],
-                image_index: this.imagePreviewIndex,
-                time_offset: this.timeOffset,
-                preview_mode: this.previewMode,
-              },
-              (err, response) => {
-                if (err) {
-                  console.error(err);
-                  return;
-                }
-
-                // Update information.
-                let startingNewAnimation =
-                  animationStartTime === null ||
-                  response.animation_index > this.animationIndex;
-                this.animationIndex = response.animation_index;
-                this.animationOffset = response.animation_offset;
-                this.animationName = response.animations[0].name;
-                if (response.animations.length > 1) {
-                  this.animationName += "...";
-                }
-                this.$set(this.animations, this.animationIndex, {
-                  name: this.animationName,
-                  duration: response.duration,
-                });
-
-                // Update the scene.
-                this.updateSceneWithFrameResponse(response);
-
-                // If starting a new scene, add tween data if present.
-                if (startingNewAnimation) {
-                  this.allAnimationsTweened = true;
-                  animationStartTime = timeStamp;
-                  for (let animation of response.animations) {
-                    if (animation.tween_data.length > 0) {
-                      for (let id of animation.mobject_ids) {
-                        this.tweenDict[id] = animation;
-                        this.tweenMobjectIds.push(id);
-                      }
-                    } else {
-                      this.allAnimationsTweened = false;
-                    }
-                  }
-                  if (this.allAnimationsTweened) {
-                    // Each animated mobject in the scene has tween data.
-                    console.warn(
-                      "Tweening mobjects without RPCs to manim. This isn't correct for",
-                      "some scenes with updaters."
-                    );
-                  }
-                }
-
-                if (!response.scene_finished) {
-                  requestAnimationFrame(renderLoop);
-                } else {
-                  this.resetAnimationData();
-                  requestAnimationFrame(this.idleRender);
-                }
-              }
-            );
-          } else {
-            this.animationOffset = (timeStamp - animationStartTime) / 1000;
-            if (
-              this.animationOffset >
-              this.animations[this.animationIndex].duration
-            ) {
-              this.resetAnimationData();
-              requestAnimationFrame(renderLoop);
-              return;
-            }
-
-            for (let mobjectId of this.tweenMobjectIds) {
-              let obj = this.mobjectDict[mobjectId];
-              let animation = this.tweenDict[mobjectId];
-              for (let tweenData of animation.tween_data) {
-                this.updateMeshWithTweenData(obj, animation, tweenData);
-              }
-            }
-            requestAnimationFrame(renderLoop);
-          }
-        };
-        requestAnimationFrame(renderLoop);
+        requestAnimationFrame(this.renderLoop);
       });
+    },
+    renderLoop(timeStamp) {
+      this.timeOffset = (timeStamp - this.playStartTimestamp) / 1000;
+      if (!this.allAnimationsTweened) {
+        this.frameClient.getFrameAtTime(
+          {
+            start_index: this.animationRange[0],
+            end_index: this.animationRange[1],
+            image_index: this.imagePreviewIndex,
+            time_offset: this.timeOffset,
+            preview_mode: this.previewMode,
+          },
+          (err, response) => {
+            this.handleFrameResponse(err, response, timeStamp);
+          }
+        );
+      } else {
+        this.tweenAnimatedMobjects(timeStamp);
+      }
+    },
+    handleFrameResponse(err, response, timeStamp) {
+      if (err) {
+        console.error(err);
+        return;
+      }
+
+      // Update information.
+      let startingNewAnimation =
+        this.animationStartTime === null ||
+        response.animation_index > this.animationIndex;
+      this.animationIndex = response.animation_index;
+      this.animationOffset = response.animation_offset;
+      this.animationName = response.animations[0].name;
+      if (response.animations.length > 1) {
+        this.animationName += "...";
+      }
+      this.$set(this.animations, this.animationIndex, {
+        name: this.animationName,
+        duration: response.duration,
+      });
+
+      // Update the scene.
+      this.updateSceneWithFrameResponse(response);
+
+      // If starting a new scene, add tween data if present.
+      if (startingNewAnimation) {
+        this.allAnimationsTweened = true;
+        this.animationStartTime = timeStamp;
+        for (let animation of response.animations) {
+          if (animation.tween_data.length > 0) {
+            for (let id of animation.mobject_ids) {
+              this.tweenDict[id] = animation;
+              this.tweenMobjectIds.push(id);
+            }
+          } else {
+            this.allAnimationsTweened = false;
+          }
+        }
+        if (this.allAnimationsTweened) {
+          // Each animated mobject in the scene has tween data.
+          console.warn(
+            "Tweening mobjects without RPCs to manim. This isn't correct for",
+            "some scenes with updaters."
+          );
+        }
+      }
+
+      if (!response.scene_finished) {
+        requestAnimationFrame(this.renderLoop);
+      } else {
+        this.resetAnimationData();
+        requestAnimationFrame(this.idleRender);
+      }
+    },
+    tweenAnimatedMobjects(timeStamp) {
+      this.animationOffset = (timeStamp - this.animationStartTime) / 1000;
+      if (this.animationOffset > this.currentAnimation.duration) {
+        this.resetAnimationData();
+        requestAnimationFrame(this.renderLoop);
+        return;
+      }
+
+      for (let mobjectId of this.tweenMobjectIds) {
+        let obj = this.mobjectDict[mobjectId];
+        let animation = this.tweenDict[mobjectId];
+        for (let tweenData of animation.tween_data) {
+          this.updateMeshWithTweenData(obj, animation, tweenData);
+        }
+      }
+      requestAnimationFrame(this.renderLoop);
     },
     resetAnimationData() {
       this.animationName = "";
