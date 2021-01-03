@@ -33,6 +33,14 @@ class Mobject extends THREE.Group {
     this.add(this.strokeMesh);
   }
 
+  getBoundingBox() {
+    let boundingBoxCenter = new THREE.Vector3();
+    this.strokeMesh.geometry.computeBoundingBox();
+    this.strokeMesh.geometry.boundingBox.getCenter(boundingBoxCenter);
+    this.localToWorld(boundingBoxCenter);
+    return boundingBoxCenter;
+  }
+
   update(points, style, needsRedraw) {
     if (needsRedraw) {
       this.updateGeometry(points, style);
@@ -211,4 +219,46 @@ class Mobject extends THREE.Group {
   }
 }
 
-export { Mobject };
+class ImageMobject extends THREE.Group {
+  constructor(
+    id,
+    imageUrl,
+    initialWidth,
+    initialHeight,
+    rootMobjectOffset = new THREE.Vector3()
+  ) {
+    super();
+    this.mobjectId = id;
+    this.rootMobjectOffset = rootMobjectOffset;
+    this.initialWidth = initialWidth;
+    this.initialHeight = initialHeight;
+    this.texture = new THREE.TextureLoader().load(imageUrl);
+    this.material = new THREE.MeshBasicMaterial({
+      map: this.texture,
+      side: THREE.DoubleSide,
+      transparent: true,
+    });
+    this.geometry = new THREE.PlaneBufferGeometry(
+      this.initialWidth,
+      this.initialHeight
+    );
+    this.mesh = new THREE.Mesh(this.geometry, this.material);
+    this.add(this.mesh);
+  }
+
+  getBoundingBox() {
+    let boundingBoxCenter = new THREE.Vector3();
+    this.mesh.geometry.computeBoundingBox();
+    this.mesh.geometry.boundingBox.getCenter(boundingBoxCenter);
+    this.localToWorld(boundingBoxCenter);
+    return boundingBoxCenter;
+  }
+
+  dispose() {
+    this.geometry.dispose();
+    this.material.dispose();
+    this.texture.dispose();
+  }
+}
+
+export { Mobject, ImageMobject };

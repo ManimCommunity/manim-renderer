@@ -128,7 +128,7 @@
 <script>
 /* eslint-disable */
 import * as THREE from "three";
-import { Mobject } from "./Mobject.js";
+import { Mobject, ImageMobject } from "./Mobject.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as utils from "./utils.js";
 import Timeline from "./Timeline.vue";
@@ -366,14 +366,7 @@ export default {
       this.tweenMobjectIds = [];
       this.allAnimationsTweened = false;
       for (let id of Object.keys(this.mobjectDict)) {
-        let mesh = this.mobjectDict[id];
-        if (mesh instanceof Mobject) {
-          mesh.dispose();
-        } else {
-          mesh.geometry.dispose();
-          mesh.material.dispose();
-          mesh.material.texture.dispose();
-        }
+        this.mobjectDict[id].dispose();
       }
       this.mobjectDict = new Map();
     },
@@ -394,10 +387,7 @@ export default {
           .add(mesh.rootMobjectOffset);
 
         // Get mesh center.
-        let boundingBoxCenter = new THREE.Vector3();
-        mesh.strokeMesh.geometry.computeBoundingBox();
-        mesh.strokeMesh.geometry.boundingBox.getCenter(boundingBoxCenter);
-        mesh.localToWorld(boundingBoxCenter);
+        let boundingBoxCenter = mesh.getBoundingBox();
 
         // Update mesh center to mobject center.
         mesh.position.add(position).sub(boundingBoxCenter);
@@ -432,7 +422,15 @@ export default {
         ] = utils.extractMobjectProto(mobjectProto);
         return new Mobject(id, points, style, new THREE.Vector3(...rootOffset));
       } else if (mobjectProto.type === "IMAGE_MOBJECT") {
-        return this.meshFromImageMobjectProto(mobjectProto);
+        let imageMesh = new ImageMobject(
+          mobjectProto.id,
+          ASSETS_SERVER_URL + mobjectProto.image_mobject_data.path,
+          mobjectProto.image_mobject_data.width,
+          mobjectProto.image_mobject_data.height,
+          new THREE.Vector3(...mobjectProto.root_mobject_offset)
+        );
+        this.updateImageProperties(imageMesh, mobjectProto);
+        return imageMesh;
       } else {
         console.error(
           `Can't create object of unknown type {mobjectProto.type}.`
@@ -440,28 +438,24 @@ export default {
       }
     },
     updateMeshFromMobjectProto(mesh, mobjectProto, frameResponse) {
-      if (mobjectProto.type === "VMOBJECT") {
-        let id = mobjectProto.id;
-
-        let updatedWithTween = false;
-        for (let animation of frameResponse.animations) {
-          if (
-            animation.tween_data.length > 0 &&
-            animation.mobject_ids.includes(id)
-          ) {
-            for (let singleTweenData of animation.tween_data) {
-              this.updateMeshWithTweenData(mesh, animation, singleTweenData);
-            }
-            updatedWithTween = true;
+      let id = mobjectProto.id;
+      let updatedWithTween = false;
+      for (let animation of frameResponse.animations) {
+        if (
+          animation.tween_data.length > 0 &&
+          animation.mobject_ids.includes(id)
+        ) {
+          for (let singleTweenData of animation.tween_data) {
+            this.updateMeshWithTweenData(mesh, animation, singleTweenData);
           }
+          return;
         }
-
-        if (!updatedWithTween) {
-          let [id, points, style, needsRedraw] = utils.extractMobjectProto(
-            mobjectProto
-          );
-          mesh.update(points, style, needsRedraw);
-        }
+      }
+      if (mobjectProto.type === "VMOBJECT") {
+        let [id, points, style, needsRedraw] = utils.extractMobjectProto(
+          mobjectProto
+        );
+        mesh.update(points, style, needsRedraw);
       } else if (mobjectProto.type === "IMAGE_MOBJECT") {
         this.updateImageProperties(mesh, mobjectProto);
       } else {
@@ -482,6 +476,7 @@ export default {
       material.texture = texture;
       const geometry = new THREE.PlaneBufferGeometry(1, 1);
       let mesh = new THREE.Mesh(geometry, material);
+      mesh.rootMobjectOffset = mobjectProto.root_mobject_offset;
       this.updateImageProperties(mesh, mobjectProto);
       return mesh;
     },
@@ -491,8 +486,8 @@ export default {
       mesh.position.y = mobjectProto.image_mobject_data.center.y;
       mesh.position.z = mobjectProto.image_mobject_data.center.z;
       mesh.scale.set(
-        mobjectProto.image_mobject_data.width,
-        mobjectProto.image_mobject_data.height,
+        mobjectProto.image_mobject_data.width / mesh.initialWidth,
+        mobjectProto.image_mobject_data.height / mesh.initialHeight,
         1
       );
     },
