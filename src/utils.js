@@ -24,6 +24,7 @@ export function extractMobjectProto(mobjectProto) {
     points,
     snakeToCamelDict(mobjectProto.style),
     mobjectProto.vectorized_mobject_data.needs_redraw,
+    mobjectProto.root_mobject_offset,
   ];
 }
 

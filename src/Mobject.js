@@ -15,9 +15,10 @@ const DEFAULT_STYLE = {
 const STROKE_SHRINK_FACTOR = 100;
 
 class Mobject extends THREE.Group {
-  constructor(id, points, style) {
+  constructor(id, points, style, rootMobjectOffset = new THREE.Vector3()) {
     super();
     this.mobjectId = id;
+    this.rootMobjectOffset = rootMobjectOffset;
     this.style = Object.assign(DEFAULT_STYLE, style);
     this.shapes = this.computeShapes(points);
     this.fillMesh = new THREE.Mesh(

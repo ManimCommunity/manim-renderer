@@ -194,7 +194,6 @@ export default {
     this.waitingUntilTimestamp = null;
     this.animationWidth = 45;
 
-    this.lastAnimationOffset = null;
     this.tweenDict = new Map();
     this.tweenMobjectIds = [];
     this.allAnimationsTweened = false;
@@ -306,7 +305,6 @@ export default {
                 if (firstFrameWithScene) {
                   // Set new tween data.
                   firstFrame = false;
-                  this.lastAnimationOffset = 0;
                   this.allAnimationsTweened = true;
                   animationStartTime = timeStamp;
                   for (let animation of response.animations) {
@@ -356,7 +354,6 @@ export default {
             }
             requestAnimationFrame(renderLoop);
           }
-          this.lastAnimationOffset = this.animationOffset;
         };
         requestAnimationFrame(renderLoop);
       });
@@ -364,7 +361,6 @@ export default {
     resetAnimationData() {
       this.animationName = "";
       this.playing = false;
-      this.lastAnimationOffset = null;
       this.tweenDict = new Map();
       this.tweenMobjectIds = [];
       this.allAnimationsTweened = false;
@@ -380,24 +376,23 @@ export default {
     updateMeshWithTweenData(mesh, animation, tweenData) {
       if (tweenData.attribute === "position") {
         // Get eased offset.
-        let easingFunction = utils[animation.easing_function];
-        let currentT = easingFunction(
+        let t = utils[animation.easing_function](
           this.animationOffset / animation.duration
         );
-        let lastT = easingFunction(
-          this.lastAnimationOffset / animation.duration
-        );
 
-        // Compute the offset of the root mobject.
-        let startPosition = new THREE.Vector3(...tweenData.start_data);
-        let endPosition = new THREE.Vector3(...tweenData.end_data);
+        // Get mobject center at the given offset.
+        let position = new THREE.Vector3(...tweenData.start_data)
+          .lerp(new THREE.Vector3(...tweenData.end_data), t)
+          .add(mesh.rootMobjectOffset);
 
-        let currentPosition = startPosition.clone().lerp(endPosition, currentT);
-        let lastPosition = startPosition.lerp(endPosition, lastT);
-        let offset = currentPosition.sub(lastPosition);
+        // Get mesh center.
+        let boundingBoxCenter = new THREE.Vector3();
+        mesh.strokeMesh.geometry.computeBoundingBox();
+        mesh.strokeMesh.geometry.boundingBox.getCenter(boundingBoxCenter);
+        mesh.localToWorld(boundingBoxCenter);
 
-        // Offset the position of the mesh.
-        mesh.position.add(offset);
+        // Update mesh center to mobject center.
+        mesh.position.add(position).sub(boundingBoxCenter);
       }
     },
     updateSceneWithFrameResponse(response) {
@@ -420,8 +415,14 @@ export default {
     },
     createObjectFromMobjectProto(mobjectProto) {
       if (mobjectProto.type === "VMOBJECT") {
-        let [id, points, style] = utils.extractMobjectProto(mobjectProto);
-        return new Mobject(id, points, style);
+        let [
+          id,
+          points,
+          style,
+          needsRedraw,
+          rootOffset,
+        ] = utils.extractMobjectProto(mobjectProto);
+        return new Mobject(id, points, style, new THREE.Vector3(...rootOffset));
       } else if (mobjectProto.type === "IMAGE_MOBJECT") {
         return this.spriteFromImageMobjectProto(mobjectProto);
       } else {
