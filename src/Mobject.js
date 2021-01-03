@@ -13,14 +13,20 @@ const DEFAULT_STYLE = {
 };
 
 const STROKE_SHRINK_FACTOR = 100;
+const ASSETS_SERVER_URL = "http://localhost:8000/";
 
 class Mobject extends THREE.Group {
-  constructor(id, points, style, rootMobjectOffset = new THREE.Vector3()) {
+  constructor(mobjectProto) {
     super();
-    this.mobjectId = id;
-    this.rootMobjectOffset = rootMobjectOffset;
-    this.style = Object.assign(DEFAULT_STYLE, style);
-    this.shapes = this.computeShapes(points);
+    this.mobjectId = mobjectProto.id;
+    this.rootMobjectOffset = new THREE.Vector3(
+      ...mobjectProto.root_mobject_offset
+    );
+    this.style = Object.assign(
+      DEFAULT_STYLE,
+      utils.snakeToCamelDict(mobjectProto.style)
+    );
+    this.shapes = this.computeShapes(utils.extractPoints(mobjectProto));
     this.fillMesh = new THREE.Mesh(
       this.computeFillGeometry(),
       this.computeFillMaterial()
@@ -41,9 +47,10 @@ class Mobject extends THREE.Group {
     return boundingBoxCenter;
   }
 
-  update(points, style, needsRedraw) {
-    if (needsRedraw) {
-      this.updateGeometry(points, style);
+  updateFromMobjectProto(mobjectProto) {
+    let style = utils.snakeToCamelDict(mobjectProto.style);
+    if (mobjectProto.vectorized_mobject_data.needs_redraw) {
+      this.updateGeometry(utils.extractPoints(mobjectProto), style);
     }
 
     this.updateMaterial(style);
@@ -220,19 +227,17 @@ class Mobject extends THREE.Group {
 }
 
 class ImageMobject extends THREE.Group {
-  constructor(
-    id,
-    imageUrl,
-    initialWidth,
-    initialHeight,
-    rootMobjectOffset = new THREE.Vector3()
-  ) {
+  constructor(mobjectProto) {
     super();
-    this.mobjectId = id;
-    this.rootMobjectOffset = rootMobjectOffset;
-    this.initialWidth = initialWidth;
-    this.initialHeight = initialHeight;
-    this.texture = new THREE.TextureLoader().load(imageUrl);
+    this.mobjectId = mobjectProto.id;
+    this.rootMobjectOffset = new THREE.Vector3(
+      ...mobjectProto.root_mobject_offset
+    );
+    this.initialWidth = mobjectProto.image_mobject_data.width;
+    this.initialHeight = mobjectProto.image_mobject_data.height;
+    this.texture = new THREE.TextureLoader().load(
+      ASSETS_SERVER_URL + mobjectProto.image_mobject_data.path
+    );
     this.material = new THREE.MeshBasicMaterial({
       map: this.texture,
       side: THREE.DoubleSide,
@@ -244,6 +249,7 @@ class ImageMobject extends THREE.Group {
     );
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.add(this.mesh);
+    this.updateFromMobjectProto(mobjectProto);
   }
 
   getBoundingBox() {
@@ -258,6 +264,18 @@ class ImageMobject extends THREE.Group {
     this.geometry.dispose();
     this.material.dispose();
     this.texture.dispose();
+  }
+
+  updateFromMobjectProto(mobjectProto) {
+    this.material.opacity = mobjectProto.style.fill_opacity;
+    this.position.x = mobjectProto.image_mobject_data.center.x;
+    this.position.y = mobjectProto.image_mobject_data.center.y;
+    this.position.z = mobjectProto.image_mobject_data.center.z;
+    this.scale.set(
+      mobjectProto.image_mobject_data.width / this.initialWidth,
+      mobjectProto.image_mobject_data.height / this.initialHeight,
+      1
+    );
   }
 }
 

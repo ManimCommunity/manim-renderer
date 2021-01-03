@@ -28,6 +28,14 @@ export function extractMobjectProto(mobjectProto) {
   ];
 }
 
+export function extractPoints(mobjectProto) {
+  let points = [];
+  for (let point of mobjectProto.vectorized_mobject_data.points) {
+    points.push([point.x, point.y, point.z]);
+  }
+  return points;
+}
+
 export function allClose(arr1, arr2) {
   console.assert(
     arr1.length === arr2.length,

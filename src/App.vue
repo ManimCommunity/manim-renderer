@@ -140,7 +140,6 @@ const path = require("path");
 const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
 
-const ASSETS_SERVER_URL = "http://localhost:8000/";
 const PROTO_DIR = __static + "/proto";
 const LOAD_OPTIONS = {
   keepCase: true,
@@ -413,23 +412,9 @@ export default {
     },
     createMeshFromMobjectProto(mobjectProto) {
       if (mobjectProto.type === "VMOBJECT") {
-        let [
-          id,
-          points,
-          style,
-          needsRedraw,
-          rootOffset,
-        ] = utils.extractMobjectProto(mobjectProto);
-        return new Mobject(id, points, style, new THREE.Vector3(...rootOffset));
+        return new Mobject(mobjectProto);
       } else if (mobjectProto.type === "IMAGE_MOBJECT") {
-        let imageMesh = new ImageMobject(
-          mobjectProto.id,
-          ASSETS_SERVER_URL + mobjectProto.image_mobject_data.path,
-          mobjectProto.image_mobject_data.width,
-          mobjectProto.image_mobject_data.height,
-          new THREE.Vector3(...mobjectProto.root_mobject_offset)
-        );
-        this.updateImageProperties(imageMesh, mobjectProto);
+        let imageMesh = new ImageMobject(mobjectProto);
         return imageMesh;
       } else {
         console.error(
@@ -451,45 +436,7 @@ export default {
           return;
         }
       }
-      if (mobjectProto.type === "VMOBJECT") {
-        let [id, points, style, needsRedraw] = utils.extractMobjectProto(
-          mobjectProto
-        );
-        mesh.update(points, style, needsRedraw);
-      } else if (mobjectProto.type === "IMAGE_MOBJECT") {
-        this.updateImageProperties(mesh, mobjectProto);
-      } else {
-        console.error(
-          `Can't update mobject of unknown type {mobjectProto.type}.`
-        );
-      }
-    },
-    meshFromImageMobjectProto(mobjectProto) {
-      const texture = new THREE.TextureLoader().load(
-        ASSETS_SERVER_URL + mobjectProto.image_mobject_data.path
-      );
-      const material = new THREE.MeshBasicMaterial({
-        map: texture,
-        side: THREE.DoubleSide,
-        transparent: true,
-      });
-      material.texture = texture;
-      const geometry = new THREE.PlaneBufferGeometry(1, 1);
-      let mesh = new THREE.Mesh(geometry, material);
-      mesh.rootMobjectOffset = mobjectProto.root_mobject_offset;
-      this.updateImageProperties(mesh, mobjectProto);
-      return mesh;
-    },
-    updateImageProperties(mesh, mobjectProto) {
-      mesh.material.opacity = mobjectProto.style.fill_opacity;
-      mesh.position.x = mobjectProto.image_mobject_data.center.x;
-      mesh.position.y = mobjectProto.image_mobject_data.center.y;
-      mesh.position.z = mobjectProto.image_mobject_data.center.z;
-      mesh.scale.set(
-        mobjectProto.image_mobject_data.width / mesh.initialWidth,
-        mobjectProto.image_mobject_data.height / mesh.initialHeight,
-        1
-      );
+      mesh.updateFromMobjectProto(mobjectProto);
     },
     updateSceneData(data) {
       if (data.has_exception) {
