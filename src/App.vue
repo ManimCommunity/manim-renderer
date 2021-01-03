@@ -372,22 +372,32 @@ export default {
       requestAnimationFrame(this.idleRender);
     },
     updateMeshWithTweenData(mesh, animation, tweenData) {
-      if (tweenData.attribute === "position") {
-        // Get eased offset.
-        let t = utils[animation.easing_function](
-          this.animationOffset / animation.duration
-        );
+      // Get eased offset.
+      let alpha = utils[animation.easing_function](
+        this.animationOffset / animation.duration
+      );
 
+      if (tweenData.attribute === "position") {
         // Get mobject center at the given offset.
         let position = new THREE.Vector3(...tweenData.start_data)
-          .lerp(new THREE.Vector3(...tweenData.end_data), t)
+          .lerp(new THREE.Vector3(...tweenData.end_data), alpha)
           .add(mesh.rootMobjectOffset);
+
+        // Causes a bug?
+        // mesh.worldToLocal(position);
+        // mesh.position.copy(position);
 
         // Get mesh center.
         let boundingBoxCenter = mesh.getBoundingBox();
 
         // Update mesh center to mobject center.
         mesh.position.add(position).sub(boundingBoxCenter);
+      } else if (tweenData.attribute === "opacity") {
+        mesh.material.opacity = alpha;
+      } else {
+        console.error(
+          `Unable to tween unknown attribute ${tweenData.attribute}.`
+        );
       }
     },
     updateSceneWithFrameResponse(response) {
