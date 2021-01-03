@@ -1,4 +1,3 @@
-/* eslint-disable */
 import * as THREE from "three";
 
 const INITIAL_ALLOCATED_VERTICES = 5000;
@@ -8,7 +7,7 @@ class MobjectFillBufferGeometry extends THREE.BufferGeometry {
     super();
     this.parameters = {
       shapes: shapes,
-      curveSegments: curveSegments
+      curveSegments: curveSegments,
     };
     curveSegments = this.parameters.curveSegments;
 
@@ -47,9 +46,12 @@ class MobjectFillBufferGeometry extends THREE.BufferGeometry {
 
     // build geometry
     this.setIndex(indices);
-    this.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-    this.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-    this.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    this.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(vertices, 3)
+    );
+    this.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+    this.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
 
     // helper functions
     // TODO: Merge this and addShapeVertices().
@@ -134,7 +136,7 @@ class MobjectFillBufferGeometry extends THREE.BufferGeometry {
     if (this.parameters.curveSegments === undefined) {
       console.warn(
         "If you don't specify curveSegments explicitly, you'll have to keep " +
-        "the default synchronized with upstream."
+          "the default synchronized with upstream."
       );
       curveSegments = 12;
     } else {

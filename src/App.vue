@@ -126,15 +126,13 @@
 </template>
 
 <script>
-/* eslint-disable */
+/* global __static */
 import * as THREE from "three";
 import { Mobject, ImageMobject } from "./Mobject.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as utils from "./utils.js";
 import Timeline from "./Timeline.vue";
-import AnimationCard from "./AnimationCard.vue";
 import DebugCard from "./DebugCard.vue";
-import { rootCertificates } from "tls";
 
 const path = require("path");
 const grpc = require("@grpc/grpc-js");
@@ -151,7 +149,7 @@ const LOAD_OPTIONS = {
 
 export default {
   name: "App",
-  components: { Timeline, AnimationCard, DebugCard },
+  components: { Timeline, DebugCard },
   data() {
     return {
       pythonReady: false,
@@ -414,8 +412,7 @@ export default {
       if (mobjectProto.type === "VMOBJECT") {
         return new Mobject(mobjectProto);
       } else if (mobjectProto.type === "IMAGE_MOBJECT") {
-        let imageMesh = new ImageMobject(mobjectProto);
-        return imageMesh;
+        return new ImageMobject(mobjectProto);
       } else {
         console.error(
           `Can't create object of unknown type {mobjectProto.type}.`
@@ -424,7 +421,6 @@ export default {
     },
     updateMeshFromMobjectProto(mesh, mobjectProto, frameResponse) {
       let id = mobjectProto.id;
-      let updatedWithTween = false;
       for (let animation of frameResponse.animations) {
         if (
           animation.tween_data.length > 0 &&
@@ -479,7 +475,7 @@ export default {
       renderServer.bindAsync(
         "localhost:50052",
         grpc.ServerCredentials.createInsecure(),
-        (err, port) => {
+        (err) => {
           if (err) {
             console.error(err);
             return;
