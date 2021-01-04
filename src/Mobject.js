@@ -1,7 +1,6 @@
 import * as THREE from "three";
-import { MeshLine, MeshLineMaterial } from "threejs-meshline";
+import { MeshLine, MeshLineMaterial } from "three.meshline";
 import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { MobjectFillBufferGeometry } from "./MobjectFillBufferGeometry.js";
 import * as utils from "./utils";
 
 const DEFAULT_STYLE = {
@@ -28,7 +27,7 @@ class Mobject extends THREE.Group {
     );
     this.shapes = this.computeShapes(utils.extractPoints(mobjectProto));
     this.fillMesh = new THREE.Mesh(
-      this.computeFillGeometry(),
+      new THREE.ShapeBufferGeometry(this.shapes),
       this.computeFillMaterial()
     );
     this.strokeMesh = new THREE.Mesh(
@@ -62,7 +61,8 @@ class Mobject extends THREE.Group {
     // If a material is currently invisible and will continue to be invisible
     // on the next frame, skip updating the corresponding geometry.
     if (!(this.style.fillOpacity === 0 && style.fillOpacity === 0)) {
-      this.fillMesh.geometry.update(this.shapes);
+      this.fillMesh.geometry.dispose();
+      this.fillMesh.geometry = new THREE.ShapeBufferGeometry(this.shapes);
     }
     if (!(this.style.strokeOpacity === 0 && style.strokeOpacity === 0)) {
       // TODO: Update this rather than destroying and recreating it.
@@ -85,27 +85,6 @@ class Mobject extends THREE.Group {
   }
 
   computeShapes(points) {
-    // let points2 = [];
-    // for (let p of points) {
-    //   let x = p[0];
-    //   let y = p[1];
-    //   points2.push([x * 1, y * 1, 0]);
-    // }
-    // let s = "";
-    // let maxX = Number.NEGATIVE_INFINITY;
-    // let minX = Number.POSITIVE_INFINITY;
-    // let maxY = Number.NEGATIVE_INFINITY;
-    // let minY = Number.POSITIVE_INFINITY;
-    // for (let p of points2) {
-    //   let x = p[0];
-    //   let y = p[1];
-    //   maxX = Math.max(maxX, x);
-    //   minX = Math.min(minX, x);
-    //   maxY = Math.max(maxY, y);
-    //   minY = Math.min(minY, y);
-    // }
-    // console.log(minX, minY, maxX - minX, maxY - minY);
-
     let shapes = [];
     let paths = [];
     let path;
@@ -115,7 +94,6 @@ class Mobject extends THREE.Group {
       if (move) {
         path = new THREE.Path();
         path.moveTo(points[curveStartIndex][0], points[curveStartIndex][1]);
-        // s += `M${points2[curveStartIndex][0]} ${points2[curveStartIndex][1]}`;
       }
       path.bezierCurveTo(
         points[curveStartIndex + 1][0],
@@ -125,11 +103,6 @@ class Mobject extends THREE.Group {
         points[curveStartIndex + 3][0],
         points[curveStartIndex + 3][1]
       );
-      // s += `C${points2[curveStartIndex + 1][0]} ${
-      //   points2[curveStartIndex + 1][1]
-      // } ${points2[curveStartIndex + 2][0]} ${points2[curveStartIndex + 2][1]} ${
-      //   points2[curveStartIndex + 3][0]
-      // } ${points2[curveStartIndex + 3][1]}`;
 
       move = curveStartIndex + 4 === points.length;
       if (!move) {
@@ -139,10 +112,8 @@ class Mobject extends THREE.Group {
       }
       if (move) {
         paths.push(path);
-        // s += "Z";
       }
     }
-    // console.log(s);
 
     // Determine paths and shapes.
     let decided_path_indices = new Set();
@@ -194,13 +165,12 @@ class Mobject extends THREE.Group {
     let extractedPoints = shape.extractPoints();
     let meshLineGeometries = [];
     for (let vecList of [extractedPoints.shape, ...extractedPoints.holes]) {
-      let geometry = new THREE.Geometry();
-      for (let i = 0; i < vecList.length; i++) {
-        let point = vecList[i];
-        geometry.vertices.push(new THREE.Vector3(point.x, point.y, 0));
+      let points = [];
+      for (let vec of vecList) {
+        points.push(vec.x, vec.y, 0);
       }
       let meshLine = new MeshLine();
-      meshLine.setGeometry(geometry);
+      meshLine.setPoints(points);
       meshLineGeometries.push(meshLine.geometry);
     }
     let fullGeometry = BufferGeometryUtils.mergeBufferGeometries(
@@ -232,10 +202,6 @@ class Mobject extends THREE.Group {
     this.strokeMesh.material.color.set(strokeColor);
     this.strokeMesh.material.opacity = strokeOpacity;
     this.strokeMesh.material.lineWidth = strokeWidth / STROKE_SHRINK_FACTOR;
-  }
-
-  computeFillGeometry() {
-    return new MobjectFillBufferGeometry(this.shapes, 11);
   }
 
   computeFillMaterial() {
