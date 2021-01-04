@@ -39,7 +39,7 @@ class Mobject extends THREE.Group {
     this.add(this.strokeMesh);
   }
 
-  getBoundingBox() {
+  getWorldBoundingBox() {
     let boundingBoxCenter = new THREE.Vector3();
     this.strokeMesh.geometry.computeBoundingBox();
     this.strokeMesh.geometry.boundingBox.getCenter(boundingBoxCenter);
@@ -85,6 +85,27 @@ class Mobject extends THREE.Group {
   }
 
   computeShapes(points) {
+    // let points2 = [];
+    // for (let p of points) {
+    //   let x = p[0];
+    //   let y = p[1];
+    //   points2.push([x * 1, y * 1, 0]);
+    // }
+    // let s = "";
+    // let maxX = Number.NEGATIVE_INFINITY;
+    // let minX = Number.POSITIVE_INFINITY;
+    // let maxY = Number.NEGATIVE_INFINITY;
+    // let minY = Number.POSITIVE_INFINITY;
+    // for (let p of points2) {
+    //   let x = p[0];
+    //   let y = p[1];
+    //   maxX = Math.max(maxX, x);
+    //   minX = Math.min(minX, x);
+    //   maxY = Math.max(maxY, y);
+    //   minY = Math.min(minY, y);
+    // }
+    // console.log(minX, minY, maxX - minX, maxY - minY);
+
     let shapes = [];
     let paths = [];
     let path;
@@ -94,6 +115,7 @@ class Mobject extends THREE.Group {
       if (move) {
         path = new THREE.Path();
         path.moveTo(points[curveStartIndex][0], points[curveStartIndex][1]);
+        // s += `M${points2[curveStartIndex][0]} ${points2[curveStartIndex][1]}`;
       }
       path.bezierCurveTo(
         points[curveStartIndex + 1][0],
@@ -103,6 +125,11 @@ class Mobject extends THREE.Group {
         points[curveStartIndex + 3][0],
         points[curveStartIndex + 3][1]
       );
+      // s += `C${points2[curveStartIndex + 1][0]} ${
+      //   points2[curveStartIndex + 1][1]
+      // } ${points2[curveStartIndex + 2][0]} ${points2[curveStartIndex + 2][1]} ${
+      //   points2[curveStartIndex + 3][0]
+      // } ${points2[curveStartIndex + 3][1]}`;
 
       move = curveStartIndex + 4 === points.length;
       if (!move) {
@@ -112,8 +139,10 @@ class Mobject extends THREE.Group {
       }
       if (move) {
         paths.push(path);
+        // s += "Z";
       }
     }
+    // console.log(s);
 
     // Determine paths and shapes.
     let decided_path_indices = new Set();
@@ -252,7 +281,7 @@ class ImageMobject extends THREE.Group {
     this.updateFromMobjectProto(mobjectProto);
   }
 
-  getBoundingBox() {
+  getWorldBoundingBox() {
     let boundingBoxCenter = new THREE.Vector3();
     this.mesh.geometry.computeBoundingBox();
     this.mesh.geometry.boundingBox.getCenter(boundingBoxCenter);

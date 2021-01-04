@@ -383,12 +383,8 @@ export default {
           .lerp(new THREE.Vector3(...tweenData.end_data), alpha)
           .add(mesh.rootMobjectOffset);
 
-        // Causes a bug?
-        // mesh.worldToLocal(position);
-        // mesh.position.copy(position);
-
         // Get mesh center.
-        let boundingBoxCenter = mesh.getBoundingBox();
+        let boundingBoxCenter = mesh.getWorldBoundingBox();
 
         // Update mesh center to mobject center.
         mesh.position.add(position).sub(boundingBoxCenter);
