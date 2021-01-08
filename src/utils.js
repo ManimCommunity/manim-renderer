@@ -1,3 +1,5 @@
+import * as THREE from "three";
+
 const snakeToCamel = (str) =>
   str.replace(/([-_][a-z])/g, (group) =>
     group
@@ -31,18 +33,15 @@ export function extractMobjectProto(mobjectProto) {
 export function extractPoints(mobjectProto) {
   let points = [];
   for (let point of mobjectProto.vectorized_mobject_data.points) {
-    points.push([point.x, point.y, point.z]);
+    let { x, y, z } = point;
+    points.push(new THREE.Vector3(x, y, z));
   }
   return points;
 }
 
-export function allClose(arr1, arr2) {
-  console.assert(
-    arr1.length === arr2.length,
-    "Called allClose() on arrays of different lengths"
-  );
-  for (let j = 0; j < arr1.length; j++) {
-    if (Math.abs(arr1[j] - arr2[j]) > 1e-6) {
+export function allClose(vec1, vec2) {
+  for (let coord of ["x", "y", "z"]) {
+    if (Math.abs(vec1[coord] - vec2[coord]) > 1e-6) {
       return false;
     }
   }

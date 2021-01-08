@@ -1,3 +1,4 @@
+/* eslint-disable */
 import * as THREE from "three";
 import { MeshLine, MeshLineMaterial } from "three.meshline";
 import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -25,7 +26,13 @@ class Mobject extends THREE.Group {
       DEFAULT_STYLE,
       utils.snakeToCamelDict(mobjectProto.style)
     );
-    this.shapes = this.computeShapes(utils.extractPoints(mobjectProto));
+
+    let points = utils.extractPoints(mobjectProto);
+    let boundingBox = new THREE.Box3().setFromPoints(points);
+    let center = new THREE.Vector3();
+    boundingBox.getCenter(center);
+
+    this.shapes = this.computeShapes(points);
     this.fillMesh = new THREE.Mesh(
       new THREE.ShapeBufferGeometry(this.shapes),
       this.computeFillMaterial()
@@ -93,22 +100,23 @@ class Mobject extends THREE.Group {
       let curveStartIndex = 4 * i;
       if (move) {
         path = new THREE.Path();
-        path.moveTo(points[curveStartIndex][0], points[curveStartIndex][1]);
+        path.moveTo(points[curveStartIndex].x, points[curveStartIndex].y);
       }
       path.bezierCurveTo(
-        points[curveStartIndex + 1][0],
-        points[curveStartIndex + 1][1],
-        points[curveStartIndex + 2][0],
-        points[curveStartIndex + 2][1],
-        points[curveStartIndex + 3][0],
-        points[curveStartIndex + 3][1]
+        points[curveStartIndex + 1].x,
+        points[curveStartIndex + 1].y,
+        points[curveStartIndex + 2].x,
+        points[curveStartIndex + 2].y,
+        points[curveStartIndex + 3].x,
+        points[curveStartIndex + 3].y
       );
 
       move = curveStartIndex + 4 === points.length;
       if (!move) {
-        let lastPoint = points[curveStartIndex + 3];
-        let nextPoint = points[curveStartIndex + 4];
-        move = !utils.allClose(lastPoint, nextPoint);
+        move = !utils.allClose(
+          points[curveStartIndex + 3],
+          points[curveStartIndex + 4]
+        );
       }
       if (move) {
         paths.push(path);
