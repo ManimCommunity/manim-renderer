@@ -27,10 +27,7 @@ class Mobject extends THREE.Group {
       utils.snakeToCamelDict(mobjectProto.style)
     );
 
-    let points = utils.extractPoints(mobjectProto);
-    let boundingBox = new THREE.Box3().setFromPoints(points);
-    let center = new THREE.Vector3();
-    boundingBox.getCenter(center);
+    let [points, center] = utils.extractPoints(mobjectProto);
 
     this.shapes = this.computeShapes(points);
     this.fillMesh = new THREE.Mesh(
@@ -43,6 +40,7 @@ class Mobject extends THREE.Group {
     );
     this.add(this.fillMesh);
     this.add(this.strokeMesh);
+    this.position.copy(center);
   }
 
   getWorldBoundingBox() {
@@ -56,13 +54,14 @@ class Mobject extends THREE.Group {
   updateFromMobjectProto(mobjectProto) {
     let style = utils.snakeToCamelDict(mobjectProto.style);
     if (mobjectProto.vectorized_mobject_data.needs_redraw) {
-      this.updateGeometry(utils.extractPoints(mobjectProto), style);
+      let [points, center] = utils.extractPoints(mobjectProto);
+      this.updateGeometry(points, center, style);
     }
 
     this.updateMaterial(style);
   }
 
-  updateGeometry(points, style) {
+  updateGeometry(points, center, style) {
     this.shapes = this.computeShapes(points);
 
     // If a material is currently invisible and will continue to be invisible
@@ -76,6 +75,7 @@ class Mobject extends THREE.Group {
       this.strokeMesh.geometry.dispose();
       this.strokeMesh.geometry = this.computeStrokeGeometry();
     }
+    this.position.copy(center);
   }
 
   updateMaterial(style) {

@@ -301,10 +301,6 @@ export default {
       if (response.animations.length > 1) {
         this.animationName += "...";
       }
-      this.$set(this.animations, this.animationIndex, {
-        name: this.animationName,
-        duration: response.duration,
-      });
 
       // Update the scene.
       this.updateSceneWithFrameResponse(response);
@@ -383,11 +379,7 @@ export default {
           .lerp(new THREE.Vector3(...tweenData.end_data), alpha)
           .add(mesh.rootMobjectOffset);
 
-        // Get mesh center.
-        let boundingBoxCenter = mesh.getWorldBoundingBox();
-
-        // Update mesh center to mobject center.
-        mesh.position.add(position).sub(boundingBoxCenter);
+        mesh.position.copy(position);
       } else if (tweenData.attribute === "opacity") {
         mesh.material.opacity = alpha;
       } else {

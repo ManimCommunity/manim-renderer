@@ -36,7 +36,16 @@ export function extractPoints(mobjectProto) {
     let { x, y, z } = point;
     points.push(new THREE.Vector3(x, y, z));
   }
-  return points;
+
+  let boundingBox = new THREE.Box3().setFromPoints(points);
+  let center = new THREE.Vector3();
+  boundingBox.getCenter(center);
+
+  for (let point of points) {
+    point.sub(center);
+  }
+
+  return [points, center];
 }
 
 export function allClose(vec1, vec2) {
