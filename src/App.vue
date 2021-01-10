@@ -126,6 +126,7 @@
 </template>
 
 <script>
+/* eslint-disable */
 /* global __static */
 import * as THREE from "three";
 import { Mobject, ImageMobject } from "./Mobject.js";
@@ -191,8 +192,7 @@ export default {
     this.waitingUntilTimestamp = null;
     this.animationWidth = 45;
 
-    this.tweenDict = new Map();
-    this.tweenMobjectIds = [];
+    this.tweenAnimations = [];
     this.allAnimationsTweened = false;
   },
   computed: {
@@ -261,6 +261,7 @@ export default {
     play() {
       this.playing = true;
       this.animationStartTime = null;
+      this.firstRequest = true;
       requestAnimationFrame((timeStamp) => {
         this.playStartTimestamp = timeStamp;
         requestAnimationFrame(this.renderLoop);
@@ -276,6 +277,7 @@ export default {
             image_index: this.imagePreviewIndex,
             time_offset: this.timeOffset,
             preview_mode: this.previewMode,
+            first_request: this.firstRequest,
           },
           (err, response) => {
             this.handleFrameResponse(err, response, timeStamp);
@@ -292,40 +294,25 @@ export default {
       }
 
       // Update information.
+      this.firstRequest = false;
       let startingNewAnimation =
         this.animationStartTime === null ||
         response.animation_index > this.animationIndex;
       this.animationIndex = response.animation_index;
       this.animationOffset = response.animation_offset;
-      this.animationName = response.animations[0].name;
+      this.animationName = this.currentAnimation.name;
       if (response.animations.length > 1) {
         this.animationName += "...";
       }
+      this.allAnimationsTweened = response.all_animations_tweened;
 
       // Update the scene.
       this.updateSceneWithFrameResponse(response);
 
-      // If starting a new scene, add tween data if present.
       if (startingNewAnimation) {
-        this.allAnimationsTweened = true;
+        // If starting a new scene, add any available tween data.
         this.animationStartTime = timeStamp;
-        for (let animation of response.animations) {
-          if (animation.tween_data.length > 0) {
-            for (let id of animation.mobject_ids) {
-              this.tweenDict[id] = animation;
-              this.tweenMobjectIds.push(id);
-            }
-          } else {
-            this.allAnimationsTweened = false;
-          }
-        }
-        if (this.allAnimationsTweened) {
-          // Each animated mobject in the scene has tween data.
-          console.warn(
-            "Tweening mobjects without RPCs to manim. This isn't correct for",
-            "some scenes with updaters."
-          );
-        }
+        this.tweenAnimations = response.animations;
       }
 
       if (!response.scene_finished) {
@@ -343,11 +330,9 @@ export default {
         return;
       }
 
-      for (let mobjectId of this.tweenMobjectIds) {
-        let obj = this.mobjectDict[mobjectId];
-        let animation = this.tweenDict[mobjectId];
-        for (let tweenData of animation.tween_data) {
-          this.updateMeshWithTweenData(obj, animation, tweenData);
+      for (let animation of this.tweenAnimations) {
+        for (let tweenInfo of animation.tween_info) {
+          this.doAnimationTween(animation, tweenInfo);
         }
       }
       requestAnimationFrame(this.renderLoop);
@@ -355,9 +340,7 @@ export default {
     resetAnimationData() {
       this.animationName = "";
       this.playing = false;
-      this.tweenDict = new Map();
-      this.tweenMobjectIds = [];
-      this.allAnimationsTweened = false;
+      this.tweenAnimations = [];
       for (let id of Object.keys(this.mobjectDict)) {
         this.mobjectDict[id].dispose();
       }
@@ -367,42 +350,61 @@ export default {
       this.renderer.render(this.scene, this.camera);
       requestAnimationFrame(this.idleRender);
     },
-    updateMeshWithTweenData(mesh, animation, tweenData) {
-      // Get eased offset.
+    doAnimationTween(animation, tweenInfo) {
+      let mesh = this.mobjectDict[tweenInfo.id];
       let alpha = utils[animation.easing_function](
         this.animationOffset / animation.duration
       );
 
-      if (tweenData.attribute === "position") {
-        // Get mobject center at the given offset.
-        let position = new THREE.Vector3(...tweenData.start_data)
-          .lerp(new THREE.Vector3(...tweenData.end_data), alpha)
-          .add(mesh.rootMobjectOffset);
-
-        mesh.position.copy(position);
-      } else if (tweenData.attribute === "opacity") {
-        mesh.material.opacity = alpha;
-      } else {
-        console.error(
-          `Unable to tween unknown attribute ${tweenData.attribute}.`
-        );
+      for (let tweenData of animation.tween_data) {
+        if (tweenData.attribute === "position") {
+          mesh.position.copy(
+            new THREE.Vector3(...tweenData.start_data)
+              .lerp(new THREE.Vector3(...tweenData.end_data), alpha)
+              .add(new THREE.Vector3(...tweenInfo.root_mobject_offset))
+          );
+        } else if (tweenData.attribute === "opacity") {
+          mesh.material.opacity = alpha;
+        } else {
+          console.error(
+            `Unable to tween unknown attribute ${tweenData.attribute}.`
+          );
+        }
       }
     },
     updateSceneWithFrameResponse(response) {
-      this.scene.children = [];
-      for (let mobjectProto of response.mobjects) {
+      // Remove.
+      let newSceneChildren = [];
+      let idsToRemove = new Set(response.frame_data.remove);
+      for (let mesh of this.scene.children) {
+        if (!idsToRemove.has(mesh.mobjectId)) {
+          newSceneChildren.push(mesh);
+        }
+      }
+      this.scene.children = newSceneChildren;
+
+      // Add.
+      for (let mobjectProto of response.frame_data.add) {
         let mobjectId = mobjectProto.id;
         if (mobjectId in this.mobjectDict) {
-          this.updateMeshFromMobjectProto(
-            this.mobjectDict[mobjectId],
-            mobjectProto,
-            response
-          );
+          this.mobjectDict[mobjectId].updateFromMobjectProto(mobjectProto);
           this.scene.add(this.mobjectDict[mobjectId]);
         } else {
           let mesh = this.createMeshFromMobjectProto(mobjectProto);
           this.mobjectDict[mobjectId] = mesh;
           this.scene.add(mesh);
+        }
+      }
+
+      // Update.
+      for (let updateData of response.frame_data.update) {
+        this.mobjectDict[updateData.id].updateFromMobjectProto(
+          updateData.redraw_data
+        );
+      }
+      for (let animation of this.tweenAnimations) {
+        for (let tweenInfo of animation.tween_info) {
+          this.doAnimationTween(animation, tweenInfo);
         }
       }
     },
@@ -416,21 +418,6 @@ export default {
           `Can't create object of unknown type {mobjectProto.type}.`
         );
       }
-    },
-    updateMeshFromMobjectProto(mesh, mobjectProto, frameResponse) {
-      let id = mobjectProto.id;
-      for (let animation of frameResponse.animations) {
-        if (
-          animation.tween_data.length > 0 &&
-          animation.mobject_ids.includes(id)
-        ) {
-          for (let singleTweenData of animation.tween_data) {
-            this.updateMeshWithTweenData(mesh, animation, singleTweenData);
-          }
-          return;
-        }
-      }
-      mesh.updateFromMobjectProto(mobjectProto);
     },
     updateSceneData(data) {
       if (data.has_exception) {
@@ -501,11 +488,12 @@ export default {
         .reduce((total, anim) => {
           return total + anim.duration;
         }, 0);
-      this.requestAndDisplayCurrentFrame();
-    },
-    requestAndDisplayCurrentFrame() {
       this.frameClient.getFrameAtTime(
-        { time_offset: this.timeOffset },
+        {
+          time_offset: this.timeOffset,
+          image_index: this.imagePreviewIndex,
+          first_request: true,
+        },
         (err, response) => {
           if (err) {
             console.error(err);
