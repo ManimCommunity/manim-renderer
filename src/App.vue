@@ -194,6 +194,11 @@ export default {
 
     this.tweenAnimations = [];
     this.allAnimationsTweened = false;
+
+    this.requestAnimationIndex = 0;
+    this.requestAnimationStartTime = 0;
+    this.cumulativeAnimationTime = 0;
+    this.startingNewAnimation = false;
   },
   computed: {
     console: () => console,
@@ -264,11 +269,28 @@ export default {
       this.firstRequest = true;
       requestAnimationFrame((timeStamp) => {
         this.playStartTimestamp = timeStamp;
+        this.requestAnimationIndex = 0;
+        if (this.previewMode === "ALL") {
+          this.requestAnimationIndex = 0;
+        } else if (this.previewMode === "ANIMATION_RANGE") {
+          this.requestAnimationIndex = this.animationRange[0];
+        }
+        this.requestAnimationStartTime = timeStamp;
+        this.cumulativeAnimationTime = 0;
         requestAnimationFrame(this.renderLoop);
       });
     },
     renderLoop(timeStamp) {
       this.timeOffset = (timeStamp - this.playStartTimestamp) / 1000;
+      if (this.startingNewAnimation) {
+        this.requestAnimationStartTime = timeStamp;
+        this.startingNewAnimation = false;
+      }
+      let timeSinceLastAnimationStart =
+        (timeStamp - this.requestAnimationStartTime) / 1000;
+      this.timeOffset =
+        this.cumulativeAnimationTime + timeSinceLastAnimationStart;
+      console.log(this.requestAnimationIndex, timeSinceLastAnimationStart);
       if (!this.allAnimationsTweened) {
         this.frameClient.getFrameAtTime(
           {
@@ -278,6 +300,8 @@ export default {
             time_offset: this.timeOffset,
             preview_mode: this.previewMode,
             first_request: this.firstRequest,
+            animation_index: this.requestAnimationIndex,
+            animation_offset: timeSinceLastAnimationStart,
           },
           (err, response) => {
             this.handleFrameResponse(err, response, timeStamp);
@@ -295,7 +319,7 @@ export default {
 
       // Update information.
       this.firstRequest = false;
-      let startingNewAnimation =
+      this.startingNewAnimation =
         this.animationStartTime === null ||
         response.animation_index > this.animationIndex;
       this.animationIndex = response.animation_index;
@@ -309,9 +333,15 @@ export default {
       // Update the scene.
       this.updateSceneWithFrameResponse(response);
 
-      if (startingNewAnimation) {
-        // If starting a new scene, add any available tween data.
+      if (this.startingNewAnimation) {
+        if (response.animation_index > this.requestAnimationIndex) {
+          this.cumulativeAnimationTime += this.animations[
+            this.requestAnimationIndex
+          ].duration;
+        }
+        this.requestAnimationIndex = response.animation_index;
         this.animationStartTime = timeStamp;
+        // If starting a new scene, add any available tween data.
         this.tweenAnimations = response.animations;
       }
 
@@ -323,7 +353,8 @@ export default {
       }
     },
     tweenAnimatedMobjects(timeStamp) {
-      this.animationOffset = (timeStamp - this.animationStartTime) / 1000;
+      this.animationOffset =
+        (timeStamp - this.requestAnimationStartTime) / 1000;
       if (this.animationOffset > this.currentAnimation.duration) {
         this.allAnimationsTweened = false;
         requestAnimationFrame(this.renderLoop);
@@ -483,16 +514,12 @@ export default {
       );
     },
     jumpToAnimation(animationIndex) {
-      this.timeOffset = this.animations
-        .slice(0, animationIndex)
-        .reduce((total, anim) => {
-          return total + anim.duration;
-        }, 0);
       this.frameClient.getFrameAtTime(
         {
-          time_offset: this.timeOffset,
           image_index: this.imagePreviewIndex,
           first_request: true,
+          animation_index: animationIndex,
+          animation_offset: 0,
         },
         (err, response) => {
           if (err) {
