@@ -179,25 +179,17 @@ export default {
     this.renderer = null;
     this.controls = null;
 
-    this.frameData = [];
-
     // Maps Mobject IDs from Python to their respective Mobjects in
     // Javascript.
     this.mobjectDict = new Map();
 
     this.renderServer = this.getRenderServer();
-
-    this.frameClient = null;
-    this.playStartTimestamp = null;
-    this.waitingUntilTimestamp = null;
-    this.animationWidth = 45;
+    this.frameClient = this.getFrameClient();
 
     this.tweenAnimations = [];
     this.allAnimationsTweened = false;
 
-    this.requestAnimationIndex = 0;
-    this.requestAnimationStartTime = 0;
-    this.cumulativeAnimationTime = 0;
+    this.animationStartTime = 0;
     this.startingNewAnimation = false;
   },
   computed: {
@@ -253,7 +245,6 @@ export default {
     this.idleRender();
 
     // Request startup information from Manim.
-    this.frameClient = this.getFrameClient();
     this.frameClient.fetchSceneData({}, (err, response) => {
       if (err) {
         console.error(err);
@@ -265,42 +256,37 @@ export default {
   methods: {
     play() {
       this.playing = true;
-      this.animationStartTime = null;
       this.firstRequest = true;
-      requestAnimationFrame((timeStamp) => {
-        this.playStartTimestamp = timeStamp;
-        this.requestAnimationIndex = 0;
-        if (this.previewMode === "ALL") {
-          this.requestAnimationIndex = 0;
-        } else if (this.previewMode === "ANIMATION_RANGE") {
-          this.requestAnimationIndex = this.animationRange[0];
-        }
-        this.requestAnimationStartTime = timeStamp;
-        this.cumulativeAnimationTime = 0;
-        requestAnimationFrame(this.renderLoop);
-      });
+      switch (this.previewMode) {
+        case "ALL":
+          this.animationIndex = 0;
+          break;
+        case "ANIMATION_RANGE":
+          this.animationIndex = this.animationRange[0];
+          break;
+        case "IMAGE":
+          this.animationIndex = this.imagePreviewIndex;
+          break;
+        default:
+          console.error(`Unknown preview mode ${this.previewMode}.`);
+      }
+      this.startingNewAnimation = true;
+      requestAnimationFrame(this.renderLoop);
     },
     renderLoop(timeStamp) {
-      this.timeOffset = (timeStamp - this.playStartTimestamp) / 1000;
       if (this.startingNewAnimation) {
-        this.requestAnimationStartTime = timeStamp;
+        this.animationStartTime = timeStamp;
         this.startingNewAnimation = false;
       }
       let timeSinceLastAnimationStart =
-        (timeStamp - this.requestAnimationStartTime) / 1000;
-      this.timeOffset =
-        this.cumulativeAnimationTime + timeSinceLastAnimationStart;
-      console.log(this.requestAnimationIndex, timeSinceLastAnimationStart);
+        (timeStamp - this.animationStartTime) / 1000;
       if (!this.allAnimationsTweened) {
         this.frameClient.getFrameAtTime(
           {
-            start_index: this.animationRange[0],
             end_index: this.animationRange[1],
-            image_index: this.imagePreviewIndex,
-            time_offset: this.timeOffset,
             preview_mode: this.previewMode,
             first_request: this.firstRequest,
-            animation_index: this.requestAnimationIndex,
+            animation_index: this.animationIndex,
             animation_offset: timeSinceLastAnimationStart,
           },
           (err, response) => {
@@ -318,12 +304,11 @@ export default {
       }
 
       // Update information.
-      this.firstRequest = false;
       this.startingNewAnimation =
-        this.animationStartTime === null ||
-        response.animation_index > this.animationIndex;
-      this.animationIndex = response.animation_index;
+        this.firstRequest || response.animation_index > this.animationIndex;
+      this.firstRequest = false;
       this.animationOffset = response.animation_offset;
+      this.animationIndex = response.animation_index;
       this.animationName = this.currentAnimation.name;
       if (response.animations.length > 1) {
         this.animationName += "...";
@@ -333,15 +318,8 @@ export default {
       // Update the scene.
       this.updateSceneWithFrameResponse(response);
 
+      // Save tween data after first render so that all mobjects are drawn at first.
       if (this.startingNewAnimation) {
-        if (response.animation_index > this.requestAnimationIndex) {
-          this.cumulativeAnimationTime += this.animations[
-            this.requestAnimationIndex
-          ].duration;
-        }
-        this.requestAnimationIndex = response.animation_index;
-        this.animationStartTime = timeStamp;
-        // If starting a new scene, add any available tween data.
         this.tweenAnimations = response.animations;
       }
 
@@ -353,8 +331,7 @@ export default {
       }
     },
     tweenAnimatedMobjects(timeStamp) {
-      this.animationOffset =
-        (timeStamp - this.requestAnimationStartTime) / 1000;
+      this.animationOffset = (timeStamp - this.animationStartTime) / 1000;
       if (this.animationOffset > this.currentAnimation.duration) {
         this.allAnimationsTweened = false;
         requestAnimationFrame(this.renderLoop);
@@ -372,6 +349,7 @@ export default {
       this.animationName = "";
       this.playing = false;
       this.tweenAnimations = [];
+      this.allAnimationsTweened = false;
       for (let id of Object.keys(this.mobjectDict)) {
         this.mobjectDict[id].dispose();
       }
@@ -460,7 +438,6 @@ export default {
       this.pythonReady = true;
       this.scene.children = [];
       this.mobjectDict = new Map();
-      this.animationIndex = 0;
       this.animationOffset = 0;
       this.animations.splice(data.scene.animations.length);
       for (let i = 0; i < data.scene.animations.length; i++) {
@@ -516,7 +493,6 @@ export default {
     jumpToAnimation(animationIndex) {
       this.frameClient.getFrameAtTime(
         {
-          image_index: this.imagePreviewIndex,
           first_request: true,
           animation_index: animationIndex,
           animation_offset: 0,
