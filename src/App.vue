@@ -22,7 +22,10 @@
           :animations="animations"
           :index="animationIndex"
           :offset="animationOffset"
+          :animationRange="animationRange"
           @jump-to-animation="(index) => jumpToAnimation(index)"
+          @set-preview-start="(index) => animationRange.splice(0, 1, index)"
+          @set-preview-end="(index) => animationRange.splice(1, 1, index)"
         />
         <div class="d-flex justify-space-between my-2">
           <div>
@@ -259,8 +262,6 @@ export default {
       this.firstRequest = true;
       switch (this.previewMode) {
         case "ALL":
-          this.animationIndex = 0;
-          break;
         case "ANIMATION_RANGE":
           this.animationIndex = this.animationRange[0];
           break;
@@ -439,6 +440,12 @@ export default {
       this.scene.children = [];
       this.mobjectDict = new Map();
       this.animationOffset = 0;
+      if (
+        this.animationRange[0] === 0 &&
+        this.animationRange[1] === this.animations.length
+      ) {
+        this.animationRange[1] = data.scene.animations.length;
+      }
       this.animations.splice(data.scene.animations.length);
       for (let i = 0; i < data.scene.animations.length; i++) {
         this.$set(this.animations, i, {
