@@ -70,8 +70,8 @@
           >
         </div>
       </div>
+      <!--
       <div class="d-flex">
-        <!--
         <AnimationCard
           :animation="currentAnimation"
           :animation-offset="animationOffset"
@@ -79,7 +79,6 @@
           @step-forward="stepForward"
           @play-animation="()=>startAnimation(/*resetAnimations=*/false, /*singleAnimation=*/true)"
         />
-        -->
         <DebugCard
           class="ml-2"
           :animation-name="animationName"
@@ -88,6 +87,7 @@
           :playing="playing"
         />
       </div>
+      -->
     </div>
   </v-app>
 </template>
@@ -128,11 +128,9 @@ export default {
       animations: [],
       playing: false,
       animationRange: [0, 0],
-      imagePreviewIndex: 0,
     };
   },
   created() {
-    this.fps = 15;
     this.aspectRatio = 16 / 9;
     this.rendererHeight = 720; // Set to 720 for 720p
     this.sceneHeight = 8;
@@ -232,22 +230,21 @@ export default {
         this.animationStartTime = timeStamp;
         this.startingNewAnimation = false;
       }
-      let timeSinceLastAnimationStart =
-        (timeStamp - this.animationStartTime) / 1000;
+      this.animationOffset = (timeStamp - this.animationStartTime) / 1000;
       if (!this.allAnimationsTweened) {
         this.frameClient.getFrameAtTime(
           {
             end_index: this.animationRange[1],
             first_request: this.firstRequest,
             animation_index: this.animationIndex,
-            animation_offset: timeSinceLastAnimationStart,
+            animation_offset: this.animationOffset,
           },
           (err, response) => {
             this.handleFrameResponse(err, response, timeStamp);
           }
         );
       } else {
-        this.tweenAnimatedMobjects(timeStamp);
+        this.tweenAnimatedMobjects();
       }
     },
     handleFrameResponse(err, response, timeStamp) {
@@ -283,8 +280,7 @@ export default {
         requestAnimationFrame(this.idleRender);
       }
     },
-    tweenAnimatedMobjects(timeStamp) {
-      this.animationOffset = (timeStamp - this.animationStartTime) / 1000;
+    tweenAnimatedMobjects() {
       if (this.animationOffset > this.currentAnimation.duration) {
         this.allAnimationsTweened = false;
         requestAnimationFrame(this.renderLoop);
