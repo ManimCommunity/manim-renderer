@@ -288,8 +288,8 @@ export default {
       }
 
       for (let animation of this.tweenAnimations) {
-        for (let tweenInfo of animation.tween_info) {
-          this.doAnimationTween(animation, tweenInfo);
+        for (let mobjectTweenData of animation.mobject_tween_data) {
+          this.doAnimationTween(animation, mobjectTweenData);
         }
       }
       requestAnimationFrame(this.renderLoop);
@@ -308,39 +308,30 @@ export default {
       this.renderer.render(this.scene, this.camera);
       requestAnimationFrame(this.idleRender);
     },
-    doAnimationTween(animation, tweenInfo) {
-      let mobject = this.mobjectDict[tweenInfo.id];
+    doAnimationTween(animation, mobjectTweenData) {
+      let mobject = this.mobjectDict[mobjectTweenData.id];
       let alpha = utils[animation.easing_function](
         this.animationOffset / animation.duration
       );
 
-      for (let tweenData of animation.tween_data) {
-        if (tweenData.attribute === "position") {
+      for (let attributeTweenData of animation.attribute_tween_data) {
+        let { attribute, start_data, end_data } = attributeTweenData;
+        if (attribute === "position") {
           mobject.position.copy(
-            new THREE.Vector3(...tweenData.start_data)
-              .lerp(new THREE.Vector3(...tweenData.end_data), alpha)
-              .add(new THREE.Vector3(...tweenInfo.root_mobject_offset))
+            new THREE.Vector3(...start_data)
+              .lerp(new THREE.Vector3(...end_data), alpha)
+              .add(new THREE.Vector3(...mobjectTweenData.root_mobject_offset))
           );
-        } else if (tweenData.attribute === "stroke_opacity") {
+        } else if (attributeTweenData.attribute === "stroke_opacity") {
           mobject.setStrokeOpacity(
-            utils.interpolate(
-              tweenData.start_data[0],
-              tweenData.end_data[0],
-              alpha
-            )
+            utils.interpolate(start_data[0], end_data[0], alpha)
           );
-        } else if (tweenData.attribute === "fill_opacity") {
+        } else if (attributeTweenData.attribute === "fill_opacity") {
           mobject.setFillOpacity(
-            utils.interpolate(
-              tweenData.start_data[0],
-              tweenData.end_data[0],
-              alpha
-            )
+            utils.interpolate(start_data[0], end_data[0], alpha)
           );
         } else {
-          console.error(
-            `Unable to tween unknown attribute ${tweenData.attribute}.`
-          );
+          console.error(`Unable to tween unknown attribute ${attribute}.`);
         }
       }
     },
@@ -369,14 +360,12 @@ export default {
       }
 
       // Update.
-      for (let updateData of response.frame_data.update) {
-        this.mobjectDict[updateData.id].updateFromMobjectProto(
-          updateData.redraw_data
-        );
+      for (let mobjectProto of response.frame_data.update) {
+        this.mobjectDict[mobjectProto.id].updateFromMobjectProto(mobjectProto);
       }
       for (let animation of this.tweenAnimations) {
-        for (let tweenInfo of animation.tween_info) {
-          this.doAnimationTween(animation, tweenInfo);
+        for (let mobjectTweenData of animation.mobject_tween_data) {
+          this.doAnimationTween(animation, mobjectTweenData);
         }
       }
     },
