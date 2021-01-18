@@ -326,16 +326,20 @@ export default {
               .add(new THREE.Vector3(...tweenInfo.root_mobject_offset))
           );
         } else if (tweenData.attribute === "stroke_opacity") {
-          mobject.strokeMesh.material.opacity = utils.interpolate(
-            tweenData.start_data[0],
-            tweenData.end_data[0],
-            alpha
+          mobject.setStrokeOpacity(
+            utils.interpolate(
+              tweenData.start_data[0],
+              tweenData.end_data[0],
+              alpha
+            )
           );
         } else if (tweenData.attribute === "fill_opacity") {
-          mobject.fillMesh.material.opacity = utils.interpolate(
-            tweenData.start_data[0],
-            tweenData.end_data[0],
-            alpha
+          mobject.setFillOpacity(
+            utils.interpolate(
+              tweenData.start_data[0],
+              tweenData.end_data[0],
+              alpha
+            )
           );
         } else {
           console.error(

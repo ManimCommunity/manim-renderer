@@ -43,8 +43,11 @@ class Mobject extends THREE.Group {
     this.position.copy(center);
   }
 
-  setOpacity(opacity) {
+  setStrokeOpacity(opacity) {
     this.strokeMesh.material.opacity = opacity;
+  }
+
+  setFillOpacity(opacity) {
     this.fillMesh.material.opacity = opacity;
   }
 
@@ -255,19 +258,28 @@ class ImageMobject extends THREE.Group {
       this.initialWidth,
       this.initialHeight
     );
-    this.mesh = new THREE.Mesh(this.geometry, this.material);
-    this.add(this.mesh);
+    this.fillMesh = new THREE.Mesh(this.geometry, this.material);
+    this.add(this.fillMesh);
     this.updateFromMobjectProto(mobjectProto);
+
+    this.strokeOpacityWarningLogged = false;
   }
 
-  setOpacity(opacity) {
-    this.material.opacity = opacity;
+  setStrokeOpacity(opacity) {
+    if (this.strokeOpacityWarningLogged) {
+      console.warn("Stroke opacity for ImageMobjects isn't implemented.");
+      this.strokeOpacityWarningLogged = true;
+    }
+  }
+
+  setFillOpacity(opacity) {
+    this.fillMesh.material.opacity = opacity;
   }
 
   getWorldBoundingBox() {
     let boundingBoxCenter = new THREE.Vector3();
-    this.mesh.geometry.computeBoundingBox();
-    this.mesh.geometry.boundingBox.getCenter(boundingBoxCenter);
+    thisfillMmesh.geometry.computeBoundingBox();
+    thisfillMmesh.geometry.boundingBox.getCenter(boundingBoxCenter);
     this.localToWorld(boundingBoxCenter);
     return boundingBoxCenter;
   }
