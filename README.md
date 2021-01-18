@@ -25,3 +25,8 @@ You can also lint and fix files with `yarn lint`.
 
 ### Customize configuration
 See [Configuration Reference](https://cli.vuejs.org/config/).
+
+## Code of Conduct
+
+
+Our full code of conduct, and how we enforce it, can be read on [our website](https://docs.manim.community/en/latest/conduct.html).
