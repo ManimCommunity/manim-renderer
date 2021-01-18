@@ -15,7 +15,7 @@
       <template v-slot:activator="{ on, attrs }">
         <v-card
           flat
-          class="flex-grow-0 flex-shrink-0 d-flex flex-row justify-center align-center mr-1 px-2"
+          class="d-flex flex-column justify-center align-center mr-1 px-2"
           @click="$emit('jump-to-animation', index)"
           :style="{
             width: animation.duration * animationWidth + 'px',
@@ -30,6 +30,7 @@
               overflow: hidden;
               white-space: nowrap;
               text-overflow: ellipsis;
+              max-width: inherit;
             "
             :style="{
               color:
@@ -41,9 +42,19 @@
           >
             {{ animation.name }}
           </div>
+          <v-icon
+            color="black"
+            :style="{
+              display:
+                animationRange[0] === index && animationRange[1] === index
+                  ? 'block'
+                  : 'none',
+            }"
+            >mdi-image</v-icon
+          >
         </v-card>
       </template>
-      <v-card class="d-flex justify-space-around py-1">
+      <v-card class="d-flex justify-space-around pa-2">
         <v-tooltip bottom>
           <template v-slot:activator="{ on, attrs }">
             <v-btn
