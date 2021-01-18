@@ -33,7 +33,8 @@
             "
             :style="{
               color:
-                animationRange[0] <= index && index < animationRange[1]
+                (animationRange[0] <= index && index < animationRange[1]) ||
+                (animationRange[0] === index && animationRange[1] === index)
                   ? 'black'
                   : 'gray',
             }"
@@ -50,7 +51,7 @@
               v-bind="attrs"
               v-on="on"
               v-on:click="$emit('set-preview-start', index)"
-              ><v-icon color="black"> mdi-step-forward</v-icon></v-btn
+              ><v-icon color="black">mdi-step-forward</v-icon></v-btn
             >
           </template>
           <span>set preview start</span>
@@ -62,7 +63,7 @@
               v-bind="attrs"
               v-on="on"
               v-on:click="$emit('set-preview-image', index)"
-              ><v-icon color="black"> mdi-image</v-icon></v-btn
+              ><v-icon color="black">mdi-image</v-icon></v-btn
             >
           </template>
           <span>preview start frame</span>
@@ -74,7 +75,7 @@
               v-bind="attrs"
               v-on="on"
               v-on:click="$emit('set-preview-end', index + 1)"
-              ><v-icon color="black"> mdi-step-backward</v-icon></v-btn
+              ><v-icon color="black">mdi-step-backward</v-icon></v-btn
             >
           </template>
           <span>set preview end</span>
