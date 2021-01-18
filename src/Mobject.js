@@ -43,6 +43,11 @@ class Mobject extends THREE.Group {
     this.position.copy(center);
   }
 
+  setOpacity(opacity) {
+    this.strokeMesh.material.opacity = opacity;
+    this.fillMesh.material.opacity = opacity;
+  }
+
   getWorldBoundingBox() {
     let boundingBoxCenter = new THREE.Vector3();
     this.strokeMesh.geometry.computeBoundingBox();
@@ -253,6 +258,10 @@ class ImageMobject extends THREE.Group {
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.add(this.mesh);
     this.updateFromMobjectProto(mobjectProto);
+  }
+
+  setOpacity(opacity) {
+    this.material.opacity = opacity;
   }
 
   getWorldBoundingBox() {

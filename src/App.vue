@@ -26,6 +26,9 @@
           @jump-to-animation="(index) => jumpToAnimation(index)"
           @set-preview-start="(index) => animationRange.splice(0, 1, index)"
           @set-preview-end="(index) => animationRange.splice(1, 1, index)"
+          @set-preview-image="
+            (index) => animationRange.splice(0, 2, index, index) && play()
+          "
         />
         <div class="d-flex justify-space-between my-2">
           <div>
@@ -65,45 +68,6 @@
           <v-btn @click="() => controls.reset(animationIndex + 1)"
             >reset camera</v-btn
           >
-        </div>
-        <div>
-          <div class="text-h5">
-            <!-- <v-checkbox v-model="previewMode" label="play range" class="large" /> -->
-            <v-radio-group v-model="previewMode">
-              <v-radio
-                v-for="x in ['ALL', 'ANIMATION_RANGE', 'IMAGE']"
-                :key="x"
-                :label="`${x}`"
-                :value="x"
-              ></v-radio>
-            </v-radio-group>
-          </div>
-          <div style="width: 50%">
-            <v-range-slider
-              :min="0"
-              :max="animations.length"
-              v-model="animationRange"
-              v-if="previewMode === 'ANIMATION_RANGE'"
-            >
-              <template v-slot:prepend>
-                <span style="width: max-content"
-                  >({{ animationRange[0] }}, {{ animationRange[1] }})</span
-                >
-              </template>
-            </v-range-slider>
-            <v-slider
-              :min="0"
-              :max="animations.length"
-              v-model="imagePreviewIndex"
-              v-if="previewMode === 'IMAGE'"
-            >
-              <template v-slot:prepend>
-                <span style="width: max-content"
-                  >({{ imagePreviewIndex }})</span
-                >
-              </template>
-            </v-slider>
-          </div>
         </div>
       </div>
       <div class="d-flex">
@@ -163,7 +127,6 @@ export default {
       animationName: "",
       animations: [],
       playing: false,
-      previewMode: "ALL",
       animationRange: [0, 0],
       imagePreviewIndex: 0,
     };
@@ -260,17 +223,7 @@ export default {
     play() {
       this.playing = true;
       this.firstRequest = true;
-      switch (this.previewMode) {
-        case "ALL":
-        case "ANIMATION_RANGE":
-          this.animationIndex = this.animationRange[0];
-          break;
-        case "IMAGE":
-          this.animationIndex = this.imagePreviewIndex;
-          break;
-        default:
-          console.error(`Unknown preview mode ${this.previewMode}.`);
-      }
+      this.animationIndex = this.animationRange[0];
       this.startingNewAnimation = true;
       requestAnimationFrame(this.renderLoop);
     },
@@ -285,7 +238,6 @@ export default {
         this.frameClient.getFrameAtTime(
           {
             end_index: this.animationRange[1],
-            preview_mode: this.previewMode,
             first_request: this.firstRequest,
             animation_index: this.animationIndex,
             animation_offset: timeSinceLastAnimationStart,
@@ -361,20 +313,20 @@ export default {
       requestAnimationFrame(this.idleRender);
     },
     doAnimationTween(animation, tweenInfo) {
-      let mesh = this.mobjectDict[tweenInfo.id];
+      let mobject = this.mobjectDict[tweenInfo.id];
       let alpha = utils[animation.easing_function](
         this.animationOffset / animation.duration
       );
 
       for (let tweenData of animation.tween_data) {
         if (tweenData.attribute === "position") {
-          mesh.position.copy(
+          mobject.position.copy(
             new THREE.Vector3(...tweenData.start_data)
               .lerp(new THREE.Vector3(...tweenData.end_data), alpha)
               .add(new THREE.Vector3(...tweenInfo.root_mobject_offset))
           );
         } else if (tweenData.attribute === "opacity") {
-          mesh.material.opacity = alpha;
+          mobject.setOpacity(alpha);
         } else {
           console.error(
             `Unable to tween unknown attribute ${tweenData.attribute}.`

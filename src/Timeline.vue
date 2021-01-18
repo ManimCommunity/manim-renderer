@@ -61,6 +61,18 @@
               icon
               v-bind="attrs"
               v-on="on"
+              v-on:click="$emit('set-preview-image', index)"
+              ><v-icon color="black"> mdi-image</v-icon></v-btn
+            >
+          </template>
+          <span>preview start frame</span>
+        </v-tooltip>
+        <v-tooltip bottom>
+          <template v-slot:activator="{ on, attrs }">
+            <v-btn
+              icon
+              v-bind="attrs"
+              v-on="on"
               v-on:click="$emit('set-preview-end', index + 1)"
               ><v-icon color="black"> mdi-step-backward</v-icon></v-btn
             >
