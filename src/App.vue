@@ -151,7 +151,6 @@ export default {
     this.frameClient = this.getFrameClient();
 
     this.tweenAnimations = [];
-    this.tweenedMobjectIds = new Set();
     this.allAnimationsTweened = false;
 
     this.animationStartTime = 0;
@@ -272,12 +271,6 @@ export default {
       // Save tween data after first render so that all mobjects are drawn at first.
       if (this.startingNewAnimation) {
         this.tweenAnimations = response.animations;
-        this.tweenedMobjectIds = new Set();
-        for (let animation of this.tweenAnimations) {
-          for (let mobjectTweenData of animation.mobject_tween_data) {
-            this.tweenedMobjectIds.add(mobjectTweenData.id);
-          }
-        }
       }
 
       if (!response.scene_finished) {
@@ -305,10 +298,9 @@ export default {
       this.animationName = "";
       this.playing = false;
       this.tweenAnimations = [];
-      this.tweenedMobjectIds = new Set();
       this.allAnimationsTweened = false;
-      for (let id of Object.keys(this.mobjectDict)) {
-        this.mobjectDict[id].dispose();
+      for (let id of this.mobjectDict.keys()) {
+        this.mobjectDict.get(id).dispose();
       }
       this.mobjectDict = new Map();
     },
@@ -317,7 +309,7 @@ export default {
       requestAnimationFrame(this.idleRender);
     },
     doAnimationTween(animation, mobjectTweenData) {
-      let mobject = this.mobjectDict[mobjectTweenData.id];
+      let mobject = this.mobjectDict.get(mobjectTweenData.id);
       let alpha = utils[animation.easing_function](
         this.animationOffset / animation.duration
       );
@@ -345,37 +337,68 @@ export default {
     },
     updateSceneWithFrameResponse(response) {
       // Remove.
-      let newSceneChildren = [];
-      let idsToRemove = new Set(response.frame_data.remove);
-      for (let mesh of this.scene.children) {
-        if (!idsToRemove.has(mesh.mobjectId)) {
-          newSceneChildren.push(mesh);
-        }
-      }
-      this.scene.children = newSceneChildren;
+      this.removeIdsFromScene(response.frame_data.remove);
 
       // Add.
       for (let mobjectProto of response.frame_data.add) {
         let mobjectId = mobjectProto.id;
-        if (mobjectId in this.mobjectDict) {
-          this.mobjectDict[mobjectId].updateFromMobjectProto(mobjectProto);
-          this.scene.add(this.mobjectDict[mobjectId]);
+        if (this.mobjectDict.has(mobjectId)) {
+          this.mobjectDict.get(mobjectId).updateFromMobjectProto(mobjectProto);
         } else {
-          let mesh = this.createMeshFromMobjectProto(mobjectProto);
-          this.mobjectDict[mobjectId] = mesh;
-          this.scene.add(mesh);
+          this.mobjectDict.set(
+            mobjectId,
+            this.createMeshFromMobjectProto(mobjectProto)
+          );
         }
+        this.scene.add(this.mobjectDict.get(mobjectId));
       }
 
-      // Update.
-      for (let mobjectProto of response.frame_data.update) {
-        this.mobjectDict[mobjectProto.id].updateFromMobjectProto(mobjectProto);
-      }
+      // Update flickered Mobjects.
+      this.updateFlickeredMobjects(response);
+
+      // Update tweened Mobjects.
       for (let animation of this.tweenAnimations) {
         for (let mobjectTweenData of animation.mobject_tween_data) {
           this.doAnimationTween(animation, mobjectTweenData);
         }
       }
+    },
+    updateFlickeredMobjects(response) {
+      // Remove Mobjects that were flickered on the last frame.
+      this.removeIdsFromScene(this.lastFrameFlickeredIds);
+
+      // Update this.lastFrameFlickeredIds.
+      if (this.startingNewAnimation) {
+        this.lastFrameFlickeredIds = response.animations
+          .concat(response.updaters)
+          .map((proto) => proto.flickered_mobject_ids)
+          .reduce((fullIdList, idList) => fullIdList.concat(idList), []);
+      } else {
+        this.lastFrameFlickeredIds = response.frame_data.update.map(
+          (mobjectProto) => mobjectProto.id
+        );
+      }
+
+      // Add Mobjects being flickered on this frame.
+      for (let mobjectProto of response.frame_data.update) {
+        if (this.mobjectDict.has(mobjectProto.id)) {
+          this.mobjectDict
+            .get(mobjectProto.id)
+            .updateFromMobjectProto(mobjectProto);
+        } else {
+          this.mobjectDict.set(
+            mobjectProto.id,
+            this.createMeshFromMobjectProto(mobjectProto)
+          );
+        }
+        this.scene.add(this.mobjectDict.get(mobjectProto.id));
+      }
+    },
+    removeIdsFromScene(idList) {
+      let idsToRemove = new Set(idList);
+      this.scene.children = this.scene.children.filter(
+        (mesh) => !idsToRemove.has(mesh.mobjectId)
+      );
     },
     createMeshFromMobjectProto(mobjectProto) {
       if (mobjectProto.type === "VMOBJECT") {
