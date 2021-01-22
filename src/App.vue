@@ -151,6 +151,7 @@ export default {
     this.frameClient = this.getFrameClient();
 
     this.tweenAnimations = [];
+    this.tweenedMobjectIds = new Set();
     this.allAnimationsTweened = false;
 
     this.animationStartTime = 0;
@@ -271,6 +272,12 @@ export default {
       // Save tween data after first render so that all mobjects are drawn at first.
       if (this.startingNewAnimation) {
         this.tweenAnimations = response.animations;
+        this.tweenedMobjectIds = new Set();
+        for (let animation of this.tweenAnimations) {
+          for (let mobjectTweenData of animation.mobject_tween_data) {
+            this.tweenedMobjectIds.add(mobjectTweenData.id);
+          }
+        }
       }
 
       if (!response.scene_finished) {
@@ -298,6 +305,7 @@ export default {
       this.animationName = "";
       this.playing = false;
       this.tweenAnimations = [];
+      this.tweenedMobjectIds = new Set();
       this.allAnimationsTweened = false;
       for (let id of Object.keys(this.mobjectDict)) {
         this.mobjectDict[id].dispose();

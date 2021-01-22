@@ -126,6 +126,11 @@ export function smooth(t, inflection = 10) {
   );
 }
 
+export function there_and_back(t, inflection = 10) {
+  let new_t = t < 0.5 ? 2 * t : 2 * (1 - t);
+  return smooth(new_t, inflection);
+}
+
 export function interpolate(a, b, t) {
   return a + t * b;
 }
