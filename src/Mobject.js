@@ -1,7 +1,7 @@
+/* eslint-disable */
 import * as THREE from "three";
-import { MeshLine, MeshLineMaterial } from "threejs-meshline";
+import { MeshLine, MeshLineMaterial } from "three.meshline";
 import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { MobjectFillBufferGeometry } from "./MobjectFillBufferGeometry.js";
 import * as utils from "./utils";
 
 const DEFAULT_STYLE = {
@@ -13,15 +13,25 @@ const DEFAULT_STYLE = {
 };
 
 const STROKE_SHRINK_FACTOR = 100;
+const ASSETS_SERVER_URL = "http://localhost:8000/";
 
 class Mobject extends THREE.Group {
-  constructor(id, points, style) {
+  constructor(mobjectProto) {
     super();
-    this.mobjectId = id;
-    this.style = Object.assign(DEFAULT_STYLE, style);
+    this.mobjectId = mobjectProto.id;
+    this.rootMobjectOffset = new THREE.Vector3(
+      ...mobjectProto.root_mobject_offset
+    );
+    this.style = Object.assign(
+      DEFAULT_STYLE,
+      utils.snakeToCamelDict(mobjectProto.style)
+    );
+
+    let [points, center] = utils.extractPoints(mobjectProto);
+
     this.shapes = this.computeShapes(points);
     this.fillMesh = new THREE.Mesh(
-      this.computeFillGeometry(),
+      new THREE.ShapeBufferGeometry(this.shapes),
       this.computeFillMaterial()
     );
     this.strokeMesh = new THREE.Mesh(
@@ -30,24 +40,53 @@ class Mobject extends THREE.Group {
     );
     this.add(this.fillMesh);
     this.add(this.strokeMesh);
+    this.position.copy(center);
   }
 
-  update(points, style, needsRedraw) {
-    if (needsRedraw) {
-      this.shapes = this.computeShapes(points);
+  setStrokeOpacity(opacity) {
+    this.strokeMesh.material.opacity = opacity;
+  }
 
-      // If a material is currently invisible and will continue to be invisible
-      // on the next frame, skip updating the corresponding geometry.
-      if (!(this.style.fillOpacity === 0 && style.fillOpacity === 0)) {
-        this.updateFillGeometry();
-      }
-      if (!(this.style.strokeOpacity === 0 && style.strokeOpacity === 0)) {
-        // TODO: Update this rather than destroying and recreating it.
-        this.strokeMesh.geometry.dispose();
-        this.strokeMesh.geometry = this.computeStrokeGeometry();
-      }
+  setFillOpacity(opacity) {
+    this.fillMesh.material.opacity = opacity;
+  }
+
+  getWorldBoundingBox() {
+    let boundingBoxCenter = new THREE.Vector3();
+    this.strokeMesh.geometry.computeBoundingBox();
+    this.strokeMesh.geometry.boundingBox.getCenter(boundingBoxCenter);
+    this.localToWorld(boundingBoxCenter);
+    return boundingBoxCenter;
+  }
+
+  updateFromMobjectProto(mobjectProto) {
+    let style = utils.snakeToCamelDict(mobjectProto.style);
+    if (mobjectProto.vectorized_mobject_data.needs_redraw) {
+      let [points, center] = utils.extractPoints(mobjectProto);
+      this.updateGeometry(points, center, style);
     }
 
+    this.updateMaterial(style);
+  }
+
+  updateGeometry(points, center, style) {
+    this.shapes = this.computeShapes(points);
+
+    // If a material is currently invisible and will continue to be invisible
+    // on the next frame, skip updating the corresponding geometry.
+    if (!(this.style.fillOpacity === 0 && style.fillOpacity === 0)) {
+      this.fillMesh.geometry.dispose();
+      this.fillMesh.geometry = new THREE.ShapeBufferGeometry(this.shapes);
+    }
+    if (!(this.style.strokeOpacity === 0 && style.strokeOpacity === 0)) {
+      // TODO: Update this rather than destroying and recreating it.
+      this.strokeMesh.geometry.dispose();
+      this.strokeMesh.geometry = this.computeStrokeGeometry();
+    }
+    this.position.copy(center);
+  }
+
+  updateMaterial(style) {
     this.style = Object.assign(this.style, style);
     this.updateFillMaterial();
     this.updateStrokeMaterial();
@@ -69,22 +108,23 @@ class Mobject extends THREE.Group {
       let curveStartIndex = 4 * i;
       if (move) {
         path = new THREE.Path();
-        path.moveTo(points[curveStartIndex][0], points[curveStartIndex][1]);
+        path.moveTo(points[curveStartIndex].x, points[curveStartIndex].y);
       }
       path.bezierCurveTo(
-        points[curveStartIndex + 1][0],
-        points[curveStartIndex + 1][1],
-        points[curveStartIndex + 2][0],
-        points[curveStartIndex + 2][1],
-        points[curveStartIndex + 3][0],
-        points[curveStartIndex + 3][1]
+        points[curveStartIndex + 1].x,
+        points[curveStartIndex + 1].y,
+        points[curveStartIndex + 2].x,
+        points[curveStartIndex + 2].y,
+        points[curveStartIndex + 3].x,
+        points[curveStartIndex + 3].y
       );
 
       move = curveStartIndex + 4 === points.length;
       if (!move) {
-        let lastPoint = points[curveStartIndex + 3];
-        let nextPoint = points[curveStartIndex + 4];
-        move = !utils.allClose(lastPoint, nextPoint);
+        move = !utils.allClose(
+          points[curveStartIndex + 3],
+          points[curveStartIndex + 4]
+        );
       }
       if (move) {
         paths.push(path);
@@ -141,13 +181,12 @@ class Mobject extends THREE.Group {
     let extractedPoints = shape.extractPoints();
     let meshLineGeometries = [];
     for (let vecList of [extractedPoints.shape, ...extractedPoints.holes]) {
-      let geometry = new THREE.Geometry();
-      for (let i = 0; i < vecList.length; i++) {
-        let point = vecList[i];
-        geometry.vertices.push(new THREE.Vector3(point.x, point.y, 0));
+      let points = [];
+      for (let vec of vecList) {
+        points.push(vec.x, vec.y, 0);
       }
       let meshLine = new MeshLine();
-      meshLine.setGeometry(geometry);
+      meshLine.setPoints(points);
       meshLineGeometries.push(meshLine.geometry);
     }
     let fullGeometry = BufferGeometryUtils.mergeBufferGeometries(
@@ -181,14 +220,6 @@ class Mobject extends THREE.Group {
     this.strokeMesh.material.lineWidth = strokeWidth / STROKE_SHRINK_FACTOR;
   }
 
-  computeFillGeometry() {
-    return new MobjectFillBufferGeometry(this.shapes, 11);
-  }
-
-  updateFillGeometry() {
-    this.fillMesh.geometry.update(this.shapes);
-  }
-
   computeFillMaterial() {
     let { fillOpacity, fillColor } = this.style;
     return new THREE.MeshBasicMaterial({
@@ -206,4 +237,70 @@ class Mobject extends THREE.Group {
   }
 }
 
-export { Mobject };
+class ImageMobject extends THREE.Group {
+  constructor(mobjectProto) {
+    super();
+    this.mobjectId = mobjectProto.id;
+    this.rootMobjectOffset = new THREE.Vector3(
+      ...mobjectProto.root_mobject_offset
+    );
+    this.initialWidth = mobjectProto.image_mobject_data.width;
+    this.initialHeight = mobjectProto.image_mobject_data.height;
+    this.texture = new THREE.TextureLoader().load(
+      ASSETS_SERVER_URL + mobjectProto.image_mobject_data.path
+    );
+    this.material = new THREE.MeshBasicMaterial({
+      map: this.texture,
+      side: THREE.DoubleSide,
+      transparent: true,
+    });
+    this.geometry = new THREE.PlaneBufferGeometry(
+      this.initialWidth,
+      this.initialHeight
+    );
+    this.fillMesh = new THREE.Mesh(this.geometry, this.material);
+    this.add(this.fillMesh);
+    this.updateFromMobjectProto(mobjectProto);
+
+    this.strokeOpacityWarningLogged = false;
+  }
+
+  setStrokeOpacity(opacity) {
+    if (this.strokeOpacityWarningLogged) {
+      console.warn("Stroke opacity for ImageMobjects isn't implemented.");
+      this.strokeOpacityWarningLogged = true;
+    }
+  }
+
+  setFillOpacity(opacity) {
+    this.fillMesh.material.opacity = opacity;
+  }
+
+  getWorldBoundingBox() {
+    let boundingBoxCenter = new THREE.Vector3();
+    thisfillMmesh.geometry.computeBoundingBox();
+    thisfillMmesh.geometry.boundingBox.getCenter(boundingBoxCenter);
+    this.localToWorld(boundingBoxCenter);
+    return boundingBoxCenter;
+  }
+
+  dispose() {
+    this.geometry.dispose();
+    this.material.dispose();
+    this.texture.dispose();
+  }
+
+  updateFromMobjectProto(mobjectProto) {
+    this.material.opacity = mobjectProto.style.fill_opacity;
+    this.position.x = mobjectProto.image_mobject_data.center.x;
+    this.position.y = mobjectProto.image_mobject_data.center.y;
+    this.position.z = mobjectProto.image_mobject_data.center.z;
+    this.scale.set(
+      mobjectProto.image_mobject_data.width / this.initialWidth,
+      mobjectProto.image_mobject_data.height / this.initialHeight,
+      1
+    );
+  }
+}
+
+export { Mobject, ImageMobject };

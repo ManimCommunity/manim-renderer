@@ -4,22 +4,95 @@
     color="grey lighten-3"
     style="height: 100px"
   >
-    <v-card
+    <v-menu
+      offset-y
+      class="d-flex"
       v-for="(animation, index) in animations"
-      v-bind:key="index"
-      flat
-      class="flex-grow-0 flex-shrink-0 d-flex flex-column justify-center mr-1"
-      @click="$emit('jump-to-animation', index)"
-      v-bind:style="{
-        overflowY: 'hidden',
-        width: (animation.duration * animationWidth) + 'px',
-        height: animationWidth + 'px',
-      }"
+      :key="index"
+      :open-on-hover="true"
+      max-width="120px"
     >
-      <v-card-title class="d-flex justify-center headline px-2">
-        <div class="text-subtitle-1">{{ animation.name }}</div>
-      </v-card-title>
-    </v-card>
+      <template v-slot:activator="{ on, attrs }">
+        <v-card
+          flat
+          class="d-flex flex-column justify-center align-center mr-1 px-2"
+          @click="$emit('jump-to-animation', index)"
+          :style="{
+            width: animation.duration * animationWidth + 'px',
+            height: animationWidth + 'px',
+          }"
+          v-bind="attrs"
+          v-on="on"
+        >
+          <div
+            class="text-subtitle-1"
+            style="
+              overflow: hidden;
+              white-space: nowrap;
+              text-overflow: ellipsis;
+              max-width: inherit;
+            "
+            :style="{
+              color:
+                (animationRange[0] <= index && index < animationRange[1]) ||
+                (animationRange[0] === index && animationRange[1] === index)
+                  ? 'black'
+                  : 'gray',
+            }"
+          >
+            {{ animation.name }}
+          </div>
+          <v-icon
+            color="black"
+            :style="{
+              display:
+                animationRange[0] === index && animationRange[1] === index
+                  ? 'block'
+                  : 'none',
+            }"
+            >mdi-image</v-icon
+          >
+        </v-card>
+      </template>
+      <v-card class="d-flex justify-space-around pa-2">
+        <v-tooltip bottom>
+          <template v-slot:activator="{ on, attrs }">
+            <v-btn
+              icon
+              v-bind="attrs"
+              v-on="on"
+              v-on:click="$emit('set-preview-start', index)"
+              ><v-icon color="black">mdi-step-forward</v-icon></v-btn
+            >
+          </template>
+          <span>set preview start</span>
+        </v-tooltip>
+        <v-tooltip bottom>
+          <template v-slot:activator="{ on, attrs }">
+            <v-btn
+              icon
+              v-bind="attrs"
+              v-on="on"
+              v-on:click="$emit('set-preview-image', index)"
+              ><v-icon color="black">mdi-image</v-icon></v-btn
+            >
+          </template>
+          <span>preview start frame</span>
+        </v-tooltip>
+        <v-tooltip bottom>
+          <template v-slot:activator="{ on, attrs }">
+            <v-btn
+              icon
+              v-bind="attrs"
+              v-on="on"
+              v-on:click="$emit('set-preview-end', index + 1)"
+              ><v-icon color="black">mdi-step-backward</v-icon></v-btn
+            >
+          </template>
+          <span>set preview end</span>
+        </v-tooltip>
+      </v-card>
+    </v-menu>
     <div id="position-indicator" :style="timelineOffset" />
   </v-card>
 </template>
@@ -31,6 +104,7 @@ export default {
     index: Number,
     offset: Number,
     animations: Array,
+    animationRange: Array,
   },
   created() {
     this.animationWidth = 100;

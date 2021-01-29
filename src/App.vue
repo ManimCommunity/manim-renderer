@@ -22,7 +22,13 @@
           :animations="animations"
           :index="animationIndex"
           :offset="animationOffset"
+          :animationRange="animationRange"
           @jump-to-animation="(index) => jumpToAnimation(index)"
+          @set-preview-start="(index) => animationRange.splice(0, 1, index)"
+          @set-preview-end="(index) => animationRange.splice(1, 1, index)"
+          @set-preview-image="
+            (index) => animationRange.splice(0, 2, index, index) && play()
+          "
         />
         <div class="d-flex justify-space-between my-2">
           <div>
@@ -63,48 +69,9 @@
             >reset camera</v-btn
           >
         </div>
-        <div>
-          <div class="text-h5">
-            <!-- <v-checkbox v-model="previewMode" label="play range" class="large" /> -->
-            <v-radio-group v-model="previewMode">
-              <v-radio
-                v-for="x in ['ALL', 'ANIMATION_RANGE', 'IMAGE']"
-                :key="x"
-                :label="`${x}`"
-                :value="x"
-              ></v-radio>
-            </v-radio-group>
-          </div>
-          <div style="width: 50%">
-            <v-range-slider
-              :min="0"
-              :max="animations.length"
-              v-model="animationRange"
-              v-if="previewMode === 'ANIMATION_RANGE'"
-            >
-              <template v-slot:prepend>
-                <span style="width: max-content"
-                  >({{ animationRange[0] }}, {{ animationRange[1] }})</span
-                >
-              </template>
-            </v-range-slider>
-            <v-slider
-              :min="0"
-              :max="animations.length"
-              v-model="imagePreviewIndex"
-              v-if="previewMode === 'IMAGE'"
-            >
-              <template v-slot:prepend>
-                <span style="width: max-content"
-                  >({{ imagePreviewIndex }})</span
-                >
-              </template>
-            </v-slider>
-          </div>
-        </div>
       </div>
+      <!--
       <div class="d-flex">
-        <!--
         <AnimationCard
           :animation="currentAnimation"
           :animation-offset="animationOffset"
@@ -112,7 +79,6 @@
           @step-forward="stepForward"
           @play-animation="()=>startAnimation(/*resetAnimations=*/false, /*singleAnimation=*/true)"
         />
-        -->
         <DebugCard
           class="ml-2"
           :animation-name="animationName"
@@ -121,25 +87,25 @@
           :playing="playing"
         />
       </div>
+      -->
     </div>
   </v-app>
 </template>
 
 <script>
 /* eslint-disable */
+/* global __static */
 import * as THREE from "three";
-import { Mobject } from "./Mobject.js";
+import { Mobject, ImageMobject } from "./Mobject.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as utils from "./utils.js";
 import Timeline from "./Timeline.vue";
-import AnimationCard from "./AnimationCard.vue";
 import DebugCard from "./DebugCard.vue";
 
 const path = require("path");
 const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
 
-const ASSETS_SERVER_URL = "http://localhost:8000/";
 const PROTO_DIR = __static + "/proto";
 const LOAD_OPTIONS = {
   keepCase: true,
@@ -151,7 +117,7 @@ const LOAD_OPTIONS = {
 
 export default {
   name: "App",
-  components: { Timeline, AnimationCard, DebugCard },
+  components: { Timeline, DebugCard },
   data() {
     return {
       pythonReady: false,
@@ -161,13 +127,10 @@ export default {
       animationName: "",
       animations: [],
       playing: false,
-      previewMode: "ALL",
       animationRange: [0, 0],
-      imagePreviewIndex: 0,
     };
   },
   created() {
-    this.fps = 15;
     this.aspectRatio = 16 / 9;
     this.rendererHeight = 720; // Set to 720 for 720p
     this.sceneHeight = 8;
@@ -180,18 +143,18 @@ export default {
     this.renderer = null;
     this.controls = null;
 
-    this.frameData = [];
-
     // Maps Mobject IDs from Python to their respective Mobjects in
     // Javascript.
     this.mobjectDict = new Map();
 
     this.renderServer = this.getRenderServer();
+    this.frameClient = this.getFrameClient();
 
-    this.frameClient = null;
-    this.playStartTimestamp = null;
-    this.waitingUntilTimestamp = null;
-    this.animationWidth = 45;
+    this.tweenAnimations = [];
+    this.allAnimationsTweened = false;
+
+    this.animationStartTime = 0;
+    this.startingNewAnimation = false;
   },
   computed: {
     console: () => console,
@@ -246,7 +209,6 @@ export default {
     this.idleRender();
 
     // Request startup information from Manim.
-    this.frameClient = this.getFrameClient();
     this.frameClient.fetchSceneData({}, (err, response) => {
       if (err) {
         console.error(err);
@@ -258,103 +220,195 @@ export default {
   methods: {
     play() {
       this.playing = true;
-      requestAnimationFrame((timeStamp) => {
-        this.playStartTimestamp = timeStamp;
-        let renderLoop = (timeStamp) => {
-          this.timeOffset = (timeStamp - this.playStartTimestamp) / 1000;
-          this.frameClient.getFrameAtTime(
-            {
-              start_index: this.animationRange[0],
-              end_index: this.animationRange[1],
-              image_index: this.imagePreviewIndex,
-              time_offset: this.timeOffset,
-              preview_mode: this.previewMode,
-            },
-            (err, response) => {
-              if (err) {
-                console.error(err);
-                return;
-              }
+      this.firstRequest = true;
+      this.animationIndex = this.animationRange[0];
+      this.startingNewAnimation = true;
+      requestAnimationFrame(this.renderLoop);
+    },
+    renderLoop(timeStamp) {
+      if (this.startingNewAnimation) {
+        this.animationStartTime = timeStamp;
+        this.startingNewAnimation = false;
+      }
+      this.animationOffset = (timeStamp - this.animationStartTime) / 1000;
+      if (!this.allAnimationsTweened) {
+        this.frameClient.getFrameAtTime(
+          {
+            end_index: this.animationRange[1],
+            first_request: this.firstRequest,
+            animation_index: this.animationIndex,
+            animation_offset: this.animationOffset,
+          },
+          (err, response) => {
+            this.handleFrameResponse(err, response, timeStamp);
+          }
+        );
+      } else {
+        this.tweenAnimatedMobjects();
+      }
+    },
+    handleFrameResponse(err, response, timeStamp) {
+      if (err) {
+        console.error(err);
+        return;
+      }
 
-              // Update information.
-              this.animationIndex = response.animation_index;
-              this.animationOffset = response.animation_offset;
-              this.animationName = response.animations[0];
-              if (response.animations.length > 1) {
-                this.animationName += "...";
-              }
-              this.$set(this.animations, this.animationIndex, {
-                name: this.animationName,
-                duration: response.duration,
-              });
+      // Update information.
+      this.startingNewAnimation =
+        this.firstRequest || response.animation_index > this.animationIndex;
+      this.firstRequest = false;
+      this.animationOffset = response.animation_offset;
+      this.animationIndex = response.animation_index;
+      this.animationName = this.currentAnimation.name;
+      if (response.animations.length > 1) {
+        this.animationName += "...";
+      }
+      this.allAnimationsTweened = response.all_animations_tweened;
 
-              // Update the scene.
-              this.updateSceneWithFrameResponse(response);
+      // Update the scene.
+      this.updateSceneWithFrameResponse(response);
 
-              if (!response.scene_finished) {
-                requestAnimationFrame(renderLoop);
-              } else {
-                this.animationName = "";
-                this.playing = false;
-                requestAnimationFrame(this.idleRender);
-              }
-            }
-          );
-        };
-        requestAnimationFrame(renderLoop);
-      });
+      // Save tween data after first render so that all mobjects are drawn at first.
+      if (this.startingNewAnimation) {
+        this.tweenAnimations = response.animations;
+      }
+
+      if (!response.scene_finished) {
+        requestAnimationFrame(this.renderLoop);
+      } else {
+        this.resetAnimationData();
+        requestAnimationFrame(this.idleRender);
+      }
+    },
+    tweenAnimatedMobjects() {
+      if (this.animationOffset > this.currentAnimation.duration) {
+        this.allAnimationsTweened = false;
+        requestAnimationFrame(this.renderLoop);
+        return;
+      }
+
+      for (let animation of this.tweenAnimations) {
+        for (let mobjectTweenData of animation.mobject_tween_data) {
+          this.doAnimationTween(animation, mobjectTweenData);
+        }
+      }
+      requestAnimationFrame(this.renderLoop);
+    },
+    resetAnimationData() {
+      this.animationName = "";
+      this.playing = false;
+      this.tweenAnimations = [];
+      this.allAnimationsTweened = false;
+      for (let id of this.mobjectDict.keys()) {
+        this.mobjectDict.get(id).dispose();
+      }
+      this.mobjectDict = new Map();
     },
     idleRender() {
       this.renderer.render(this.scene, this.camera);
       requestAnimationFrame(this.idleRender);
     },
-    updateSceneWithFrameResponse(response) {
-      this.scene.children = [];
-      for (let mobject_proto of response.mobjects) {
-        if (mobject_proto.type === "VMOBJECT") {
-          let [id, points, style, needsRedraw] = utils.extractMobjectProto(
-            mobject_proto
+    doAnimationTween(animation, mobjectTweenData) {
+      let mobject = this.mobjectDict.get(mobjectTweenData.id);
+      let alpha = utils[animation.easing_function](
+        this.animationOffset / animation.duration
+      );
+
+      for (let attributeTweenData of animation.attribute_tween_data) {
+        let { attribute, start_data, end_data } = attributeTweenData;
+        if (attribute === "position") {
+          mobject.position.copy(
+            new THREE.Vector3(...start_data)
+              .lerp(new THREE.Vector3(...end_data), alpha)
+              .add(new THREE.Vector3(...mobjectTweenData.root_mobject_offset))
           );
-          let mobject_mesh;
-          if (id in this.mobjectDict) {
-            this.mobjectDict[id].update(points, style, needsRedraw);
-            mobject_mesh = this.mobjectDict[id];
-          } else {
-            mobject_mesh = new Mobject(id, points, style);
-            this.mobjectDict[id] = mobject_mesh;
-          }
-          this.scene.add(mobject_mesh);
-        } else if (mobject_proto.type === "IMAGE_MOBJECT") {
-          // TODO: Do this with a texture loader rather than a sprite
-          // (https://threejs.org/examples/?q=texture#webgl_loader_texture_exr).
-          let id = mobject_proto.id;
-          let sprite = null;
-          if (id in this.mobjectDict) {
-            sprite = this.mobjectDict[id];
-          } else {
-            const map = new THREE.TextureLoader().load(
-              ASSETS_SERVER_URL + mobject_proto.image_mobject_data.path,
-              undefined,
-              undefined,
-              (err) => {
-                console.error("error loading image:", err);
-              }
-            );
-            const material = new THREE.SpriteMaterial({ map: map });
-            sprite = new THREE.Sprite(material);
-            this.mobjectDict[id] = sprite;
-          }
-          sprite.material.opacity = mobject_proto.style.fill_opacity;
-          sprite.position.x = mobject_proto.image_mobject_data.center.x;
-          sprite.position.y = mobject_proto.image_mobject_data.center.y;
-          sprite.position.z = mobject_proto.image_mobject_data.center.z;
-          sprite.scale.set(
-            mobject_proto.image_mobject_data.width,
-            mobject_proto.image_mobject_data.height,
-            1
+        } else if (attributeTweenData.attribute === "stroke_opacity") {
+          mobject.setStrokeOpacity(
+            utils.interpolate(start_data[0], end_data[0], alpha)
           );
-          this.scene.add(sprite);
+        } else if (attributeTweenData.attribute === "fill_opacity") {
+          mobject.setFillOpacity(
+            utils.interpolate(start_data[0], end_data[0], alpha)
+          );
+        } else {
+          console.error(`Unable to tween unknown attribute ${attribute}.`);
         }
+      }
+    },
+    updateSceneWithFrameResponse(response) {
+      // Remove.
+      this.removeIdsFromScene(response.frame_data.remove);
+
+      // Add.
+      for (let mobjectProto of response.frame_data.add) {
+        let mobjectId = mobjectProto.id;
+        if (this.mobjectDict.has(mobjectId)) {
+          this.mobjectDict.get(mobjectId).updateFromMobjectProto(mobjectProto);
+        } else {
+          this.mobjectDict.set(
+            mobjectId,
+            this.createMeshFromMobjectProto(mobjectProto)
+          );
+        }
+        this.scene.add(this.mobjectDict.get(mobjectId));
+      }
+
+      // Update flickered Mobjects.
+      this.updateFlickeredMobjects(response);
+
+      // Update tweened Mobjects.
+      for (let animation of this.tweenAnimations) {
+        for (let mobjectTweenData of animation.mobject_tween_data) {
+          this.doAnimationTween(animation, mobjectTweenData);
+        }
+      }
+    },
+    updateFlickeredMobjects(response) {
+      // Remove Mobjects that were flickered on the last frame.
+      this.removeIdsFromScene(this.lastFrameFlickeredIds);
+
+      // Update this.lastFrameFlickeredIds.
+      if (this.startingNewAnimation) {
+        this.lastFrameFlickeredIds = response.animations
+          .concat(response.updaters)
+          .map((proto) => proto.flickered_mobject_ids)
+          .reduce((fullIdList, idList) => fullIdList.concat(idList), []);
+      } else {
+        this.lastFrameFlickeredIds = response.frame_data.update.map(
+          (mobjectProto) => mobjectProto.id
+        );
+      }
+
+      // Add Mobjects being flickered on this frame.
+      for (let mobjectProto of response.frame_data.update) {
+        if (this.mobjectDict.has(mobjectProto.id)) {
+          this.mobjectDict
+            .get(mobjectProto.id)
+            .updateFromMobjectProto(mobjectProto);
+        } else {
+          this.mobjectDict.set(
+            mobjectProto.id,
+            this.createMeshFromMobjectProto(mobjectProto)
+          );
+        }
+        this.scene.add(this.mobjectDict.get(mobjectProto.id));
+      }
+    },
+    removeIdsFromScene(idList) {
+      let idsToRemove = new Set(idList);
+      this.scene.children = this.scene.children.filter(
+        (mesh) => !idsToRemove.has(mesh.mobjectId)
+      );
+    },
+    createMeshFromMobjectProto(mobjectProto) {
+      if (mobjectProto.type === "VMOBJECT") {
+        return new Mobject(mobjectProto);
+      } else if (mobjectProto.type === "IMAGE_MOBJECT") {
+        return new ImageMobject(mobjectProto);
+      } else {
+        console.error(
+          `Can't create object of unknown type {mobjectProto.type}.`
+        );
       }
     },
     updateSceneData(data) {
@@ -367,8 +421,13 @@ export default {
       this.pythonReady = true;
       this.scene.children = [];
       this.mobjectDict = new Map();
-      this.animationIndex = 0;
       this.animationOffset = 0;
+      if (
+        this.animationRange[0] === 0 &&
+        this.animationRange[1] === this.animations.length
+      ) {
+        this.animationRange[1] = data.scene.animations.length;
+      }
       this.animations.splice(data.scene.animations.length);
       for (let i = 0; i < data.scene.animations.length; i++) {
         this.$set(this.animations, i, {
@@ -398,7 +457,7 @@ export default {
       renderServer.bindAsync(
         "localhost:50052",
         grpc.ServerCredentials.createInsecure(),
-        (err, port) => {
+        (err) => {
           if (err) {
             console.error(err);
             return;
@@ -421,16 +480,12 @@ export default {
       );
     },
     jumpToAnimation(animationIndex) {
-      this.timeOffset = this.animations
-        .slice(0, animationIndex)
-        .reduce((total, anim) => {
-          return total + anim.duration;
-        }, 0);
-      this.requestAndDisplayCurrentFrame();
-    },
-    requestAndDisplayCurrentFrame() {
       this.frameClient.getFrameAtTime(
-        { time_offset: this.timeOffset },
+        {
+          first_request: true,
+          animation_index: animationIndex,
+          animation_offset: 0,
+        },
         (err, response) => {
           if (err) {
             console.error(err);

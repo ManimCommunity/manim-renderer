@@ -1,3 +1,5 @@
+import * as THREE from "three";
+
 const snakeToCamel = (str) =>
   str.replace(/([-_][a-z])/g, (group) =>
     group
@@ -24,16 +26,31 @@ export function extractMobjectProto(mobjectProto) {
     points,
     snakeToCamelDict(mobjectProto.style),
     mobjectProto.vectorized_mobject_data.needs_redraw,
+    mobjectProto.root_mobject_offset,
   ];
 }
 
-export function allClose(arr1, arr2) {
-  console.assert(
-    arr1.length === arr2.length,
-    "Called allClose() on arrays of different lengths"
-  );
-  for (let j = 0; j < arr1.length; j++) {
-    if (Math.abs(arr1[j] - arr2[j]) > 1e-6) {
+export function extractPoints(mobjectProto) {
+  let points = [];
+  for (let point of mobjectProto.vectorized_mobject_data.points) {
+    let { x, y, z } = point;
+    points.push(new THREE.Vector3(x, y, z));
+  }
+
+  let boundingBox = new THREE.Box3().setFromPoints(points);
+  let center = new THREE.Vector3();
+  boundingBox.getCenter(center);
+
+  for (let point of points) {
+    point.sub(center);
+  }
+
+  return [points, center];
+}
+
+export function allClose(vec1, vec2) {
+  for (let coord of ["x", "y", "z"]) {
+    if (Math.abs(vec1[coord] - vec2[coord]) > 1e-6) {
       return false;
     }
   }
@@ -90,4 +107,30 @@ export function isPointInsidePolygon(inPt, inPolygon) {
   }
 
   return inside;
+}
+
+export function clip(val, min, max) {
+  return Math.max(min, Math.min(max, val));
+}
+
+export function sigmoid(x) {
+  return 1.0 / (1 + Math.exp(-x));
+}
+
+export function smooth(t, inflection = 10) {
+  let error = sigmoid(-inflection / 2);
+  return clip(
+    (sigmoid(inflection * (t - 0.5)) - error) / (1 - 2 * error),
+    0,
+    1
+  );
+}
+
+export function there_and_back(t, inflection = 10) {
+  let new_t = t < 0.5 ? 2 * t : 2 * (1 - t);
+  return smooth(new_t, inflection);
+}
+
+export function interpolate(a, b, t) {
+  return a + t * b;
 }
