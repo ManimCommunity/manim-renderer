@@ -102,6 +102,7 @@ import * as utils from "./utils.js";
 import Timeline from "./Timeline.vue";
 import DebugCard from "./DebugCard.vue";
 
+const fs = require("fs");
 const path = require("path");
 const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
@@ -209,11 +210,19 @@ export default {
     this.idleRender();
 
     // Request startup information from Manim.
-    this.frameClient.fetchSceneData({}, (err, response) => {
-      if (err) {
-        console.error(err);
+    this.frameClient.fetchSceneData({}, (error, response) => {
+      if (error) {
+        console.error(error);
         return;
       }
+      fs.watchFile(response.path, {interval: 1000}, () => {
+        this.frameClient.scriptUpdated({}, (err, res) => {
+          if (err) {
+            console.error(err);
+            return;
+          }
+        });
+      });
       this.updateSceneData(response);
     });
   },
