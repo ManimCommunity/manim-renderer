@@ -219,7 +219,7 @@ export default {
         this.frameClient.scriptUpdated({}, (err, res) => {
           if (err) {
             console.error(err);
-            return;
+            // return;
           }
         });
       });
