@@ -8,7 +8,7 @@
 
 **On Linux** The zip file will contain a .AppImage file. Before running the file you'll have to mark it as executable with `chmod +x manim-renderer-<version>.AppImage`.
 
-**On Windows 10** The zip file will contain an application installer. When you run it you'll see a window saying that the app is unrecognized. Verifying software on Windows requires paying around $100 annually for a certificate, so we've opted not to do it. You can still run the renderer by clicking "More info" and "Run anyway" in the dialog. Automatic reloading doesn't work on Windows [due to the way its filesystem works](https://github.com/gorakhargosh/watchdog/issues/393).
+**On Windows 10** The zip file will contain an application installer. When you run it you'll see a window saying that the app is unrecognized. Verifying software on Windows requires paying around $100 annually for a certificate, so we've opted not to do it. You can still run the renderer by clicking "More info" and "Run anyway" in the dialog.
 
 ## To develop
 * Install dependencies: `yarn install`
