@@ -16,6 +16,7 @@
     "@grpc/grpc-js": "^1.0.5",
     "@grpc/proto-loader": "^0.5.4",
     "@mdi/font": "^5.3.45",
+    "chokidar": "^3.5.1",
     "core-js": "^3.6.5",
     "eslint-plugin-vue": "^6.2.2",
     "google-auth-library": "^6.0.1",

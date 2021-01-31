@@ -102,7 +102,7 @@ import * as utils from "./utils.js";
 import Timeline from "./Timeline.vue";
 import DebugCard from "./DebugCard.vue";
 
-const fs = require("fs");
+const chokidar = require("chokidar");
 const path = require("path");
 const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
@@ -215,7 +215,7 @@ export default {
         console.error(error);
         return;
       }
-      fs.watchFile(response.path, {interval: 1000}, () => {
+      chokidar.watch(response.path).on('all', () => {
         this.frameClient.scriptUpdated({}, (err, res) => {
           if (err) {
             console.error(err);
