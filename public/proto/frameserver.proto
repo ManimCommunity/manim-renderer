@@ -9,7 +9,7 @@ service FrameServer {
     // Returns a list of the names and durations of all animations in the scene.
     rpc FetchSceneData (EmptyRequest) returns (FetchSceneDataResponse);
     
-    // Returns when the Manim script changes
+    // Called when the Manim script changes
     rpc ScriptUpdated (EmptyRequest) returns (EmptyResponse);
 }
 
