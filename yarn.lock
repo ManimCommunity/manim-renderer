@@ -8870,10 +8870,10 @@ three.meshline@^1.3.0:
   resolved "https://registry.yarnpkg.com/three.meshline/-/three.meshline-1.3.0.tgz#362d9bd3480907a4d8a2663587722a34e5a7cc92"
   integrity sha512-ZEb6cZiMh7RFPAQ0320aVBQx1CK4/wFffG9NNAArfX4KBPSJzjS19tYSuhNX7eZ1trU4blEHixz1EXkXN33++w==
 
-three@^0.117.1:
-  version "0.117.1"
-  resolved "https://registry.yarnpkg.com/three/-/three-0.117.1.tgz#a49bcb1a6ddea2f250003e42585dc3e78e92b9d3"
-  integrity sha512-t4zeJhlNzUIj9+ub0l6nICVimSuRTZJOqvk3Rmlu+YGdTOJ49Wna8p7aumpkXJakJfITiybfpYE1XN1o1Z34UQ==
+three@^0.125.0:
+  version "0.125.0"
+  resolved "https://registry.yarnpkg.com/three/-/three-0.125.0.tgz#19e922b9dc51ad0b706893aeee888de68e99850a"
+  integrity sha512-qL36qUGsPQ/Ofo/RZdXwHwM7A8wzUSAIyawtjIebJSPvounUQeneSqxI0aBY2iwKpseGy+RUtj3C5f/z4poyXw==
 
 through2-filter@^3.0.0:
   version "3.0.0"
