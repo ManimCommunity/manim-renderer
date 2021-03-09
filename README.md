@@ -18,7 +18,7 @@
 
 ## Using the renderer
 Once the renderer is open, you can use it by passing the `--use_webgl_renderer` flag to manim, e.g. `manim example_scenes/basic.py SquareToCircle --use_webgl_renderer`. The scene should automatically be played in the WebGL renderer (you may have to restart the renderer with `ctrl+r`/`cmd+r`).
-The scene will automatically be reloaded and replayed any time the file containing it is saved.
+The scene will automatically be reloaded and replayed any time the file containing it is saved. If there is more than one scene in the file, the renderer will not reload unless the name of the desired scene is passed in the command. If you have any problems with hot reload, a renderer restart may be necessary (`ctrl+r`/`cmd+r`).
 
 ## To package
 `yarn electron:build`
